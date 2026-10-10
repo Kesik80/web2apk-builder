@@ -8,11 +8,13 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +58,8 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var result by remember { mutableStateOf<ImportResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var buildStatus by remember { mutableStateOf<String?>(null) }
+    var appName by remember { mutableStateOf("Fahrzeit") }
+    var appUrl by remember { mutableStateOf("https://fahrzeit.vercel.app") }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -80,29 +84,52 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.primary
         )
+
+        OutlinedTextField(
+            value = appName,
+            onValueChange = { appName = it },
+            label = { Text("App name") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
+        )
+        OutlinedTextField(
+            value = appUrl,
+            onValueChange = { appUrl = it },
+            label = { Text("Site URL (https)") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        )
+        Button(
+            onClick = {
+                val url = appUrl.trim()
+                if (!url.startsWith("https://")) {
+                    buildStatus = "URL must start with https://"
+                } else {
+                    buildStatus = "Building..."
+                    scope.launch {
+                        buildStatus = try {
+                            val where = withContext(Dispatchers.IO) {
+                                ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url)
+                            }
+                            "Saved: $where"
+                        } catch (e: Throwable) {
+                            "Build error: ${e.javaClass.simpleName}: ${e.message}"
+                        }
+                    }
+                }
+            },
+            modifier = Modifier.padding(top = 12.dp)
+        ) { Text("Build APK") }
+
+        buildStatus?.let {
+            Text(it, modifier = Modifier.padding(top = 12.dp))
+        }
+
         Button(
             onClick = { picker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
             modifier = Modifier.padding(top = 16.dp)
         ) { Text("Choose ZIP") }
 
-        Button(
-            onClick = {
-                buildStatus = "Building..."
-                scope.launch {
-                    buildStatus = try {
-                        val where = withContext(Dispatchers.IO) { ApkBuilder.buildTestApk(context) }
-                        "Saved: $where"
-                    } catch (e: Throwable) {
-                        "Build error: ${e.javaClass.simpleName}: ${e.message}"
-                    }
-                }
-            },
-            modifier = Modifier.padding(top = 8.dp)
-        ) { Text("Build test APK") }
-
-        buildStatus?.let {
-            Text(it, modifier = Modifier.padding(top = 12.dp))
-        }
         error?.let {
             Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
         }
