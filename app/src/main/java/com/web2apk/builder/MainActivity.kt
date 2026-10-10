@@ -2,21 +2,34 @@ package com.web2apk.builder
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.Arrangement
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.web2apk.builder.importer.ImportResult
+import com.web2apk.builder.importer.ZipImporter
 import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -37,35 +50,51 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun HomeScreen(version: String, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = "Web2APK Builder",
-            style = MaterialTheme.typography.headlineMedium
-        )
-        Text(
-            text = "v$version",
-            style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(top = 8.dp)
-        )
-        Text(
-            text = "Website or ZIP → APK",
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(top = 16.dp)
-        )
-    }
-}
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var result by remember { mutableStateOf<ImportResult?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
 
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    Web2APKBuilderTheme {
-        HomeScreen(version = "0.1")
+    val picker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            scope.launch {
+                try {
+                    result = withContext(Dispatchers.IO) { ZipImporter.import(context, uri) }
+                    error = null
+                } catch (e: Exception) {
+                    result = null
+                    error = e.message ?: e.toString()
+                }
+            }
+        }
+    }
+
+    Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
+        Text("Web2APK Builder", style = MaterialTheme.typography.headlineMedium)
+        Text(
+            "v$version",
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.primary
+        )
+        Button(
+            onClick = { picker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
+            modifier = Modifier.padding(top = 16.dp)
+        ) { Text("Choose ZIP") }
+
+        error?.let {
+            Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+        }
+        result?.let { r ->
+            Text(
+                if (r.hasIndex) "index.html found, ${r.files.size} files"
+                else "No index.html in the archive root, ${r.files.size} files",
+                modifier = Modifier.padding(vertical = 12.dp)
+            )
+            LazyColumn {
+                items(r.files) { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
+        }
     }
 }
