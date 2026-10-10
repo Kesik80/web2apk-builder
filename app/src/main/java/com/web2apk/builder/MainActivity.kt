@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import com.web2apk.builder.apk.ApkBuilder
 import com.web2apk.builder.importer.ImportResult
 import com.web2apk.builder.importer.ZipImporter
 import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
@@ -54,6 +55,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     val scope = rememberCoroutineScope()
     var result by remember { mutableStateOf<ImportResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    var buildStatus by remember { mutableStateOf<String?>(null) }
 
     val picker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -83,6 +85,24 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             modifier = Modifier.padding(top = 16.dp)
         ) { Text("Choose ZIP") }
 
+        Button(
+            onClick = {
+                buildStatus = "Building..."
+                scope.launch {
+                    buildStatus = try {
+                        val where = withContext(Dispatchers.IO) { ApkBuilder.buildTestApk(context) }
+                        "Saved: $where"
+                    } catch (e: Throwable) {
+                        "Build error: ${e.javaClass.simpleName}: ${e.message}"
+                    }
+                }
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        ) { Text("Build test APK") }
+
+        buildStatus?.let {
+            Text(it, modifier = Modifier.padding(top = 12.dp))
+        }
         error?.let {
             Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
         }
