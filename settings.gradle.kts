@@ -24,3 +24,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Web2APK Builder"
 include(":app")
+include(":template")
