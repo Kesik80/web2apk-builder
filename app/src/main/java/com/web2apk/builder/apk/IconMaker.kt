@@ -8,18 +8,23 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 
 object IconMaker {
-    /** Crops the picked image to a centered square and scales it to a launcher-icon PNG. */
     fun toPng(context: Context, uri: Uri, size: Int = 192): ByteArray {
+        val data = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: throw IOException("Cannot read the image")
+        return fromBytes(data, size)
+    }
+
+    /** Crops an image to a centered square and scales it to a launcher-icon PNG. */
+    fun fromBytes(data: ByteArray, size: Int = 192): ByteArray {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, bounds) }
+        BitmapFactory.decodeByteArray(data, 0, data.size, bounds)
         var sample = 1
         while (bounds.outWidth / (sample * 2) >= size * 2 && bounds.outHeight / (sample * 2) >= size * 2) {
             sample *= 2
         }
         val opts = BitmapFactory.Options().apply { inSampleSize = sample }
-        val src = context.contentResolver.openInputStream(uri)?.use {
-            BitmapFactory.decodeStream(it, null, opts)
-        } ?: throw IOException("Cannot read the image")
+        val src = BitmapFactory.decodeByteArray(data, 0, data.size, opts)
+            ?: throw IOException("Cannot decode the image")
 
         val side = minOf(src.width, src.height)
         val square = Bitmap.createBitmap(src, (src.width - side) / 2, (src.height - side) / 2, side, side)

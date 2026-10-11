@@ -36,6 +36,7 @@ import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.material3.TextButton
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -116,9 +117,12 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                 Text("Choose icon")
             }
             Text(
-                if (iconUri != null) "icon selected" else "default icon",
+                if (iconUri != null) "icon: chosen" else "icon: from site",
                 modifier = Modifier.padding(start = 12.dp)
             )
+            if (iconUri != null) {
+                TextButton(onClick = { iconUri = null }) { Text("Reset") }
+            }
         }
 
         Row(modifier = Modifier.padding(top = 8.dp)) {

@@ -42,7 +42,22 @@ object ApkBuilder {
 
         val pkg = packageFor(url)
         val config = JSONObject().put("name", appName).put("url", url).toString()
-        val iconPng = iconUri?.let { IconMaker.toPng(context, it) }
+
+        var iconSource = "default"
+        val iconPng: ByteArray? = if (iconUri != null) {
+            iconSource = "chosen"
+            IconMaker.toPng(context, iconUri)
+        } else {
+            val raw = try { IconFetcher.fetch(url) } catch (e: Exception) { null }
+            if (raw != null) {
+                try {
+                    IconMaker.fromBytes(raw).also { iconSource = "from site" }
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+        }
+
         val unsigned = File(context.cacheDir, "unsigned.apk")
         repack(
             template,
@@ -65,7 +80,7 @@ object ApkBuilder {
 
         val slug = appName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "app" }
         val where = saveToDownloads(context, signed, "$slug.apk")
-        return "$where ($pkg)"
+        return "$where ($pkg), icon: $iconSource"
     }
 
     private class CountingStream(out: OutputStream) : FilterOutputStream(out) {
