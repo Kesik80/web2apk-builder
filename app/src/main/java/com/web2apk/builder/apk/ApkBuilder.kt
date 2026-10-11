@@ -2,6 +2,8 @@ package com.web2apk.builder.apk
 
 import android.content.ContentValues
 import android.content.Context
+import android.net.Uri
+import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import org.json.JSONObject
@@ -16,11 +18,11 @@ import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
-import android.os.Build
 
 object ApkBuilder {
     private const val TEMPLATE_PACKAGE = "com.web2apk.template"
     private const val TEMPLATE_LABEL = "Web App"
+    private val ICON_ENTRY = Regex("res/.*\\.png")
 
     /** Same URL always gives the same package, so rebuilding updates the app instead of duplicating it. */
     fun packageFor(url: String): String {
@@ -32,7 +34,7 @@ object ApkBuilder {
     }
 
     /** Builds a signed APK from the bundled template. Returns a description of where it was saved. */
-    fun build(context: Context, appName: String, url: String): String {
+    fun build(context: Context, appName: String, url: String, iconUri: Uri?): String {
         val template = File(context.cacheDir, "template.apk")
         context.assets.open("template.apk").use { input ->
             template.outputStream().use { input.copyTo(it) }
@@ -40,6 +42,7 @@ object ApkBuilder {
 
         val pkg = packageFor(url)
         val config = JSONObject().put("name", appName).put("url", url).toString()
+        val iconPng = iconUri?.let { IconMaker.toPng(context, it) }
         val unsigned = File(context.cacheDir, "unsigned.apk")
         repack(
             template,
@@ -52,7 +55,8 @@ object ApkBuilder {
                         mapOf(TEMPLATE_PACKAGE to pkg, TEMPLATE_LABEL to appName)
                     )
                 }
-            )
+            ),
+            iconPng = iconPng
         )
 
         val signed = File(context.cacheDir, "signed.apk")
@@ -81,9 +85,11 @@ object ApkBuilder {
         template: File,
         output: File,
         replacements: Map<String, ByteArray>,
-        transforms: Map<String, (ByteArray) -> ByteArray>
+        transforms: Map<String, (ByteArray) -> ByteArray>,
+        iconPng: ByteArray?
     ) {
         val counting = CountingStream(BufferedOutputStream(FileOutputStream(output)))
+        var iconReplaced = false
         ZipOutputStream(counting).use { zos ->
             ZipFile(template).use { zf ->
                 for (entry in zf.entries()) {
@@ -91,13 +97,20 @@ object ApkBuilder {
                     if (entry.isDirectory) continue
                     if (name.startsWith("META-INF/") || replacements.containsKey(name)) continue
                     val raw = zf.getInputStream(entry).use { it.readBytes() }
-                    val data = transforms[name]?.invoke(raw) ?: raw
+                    var data = transforms[name]?.invoke(raw) ?: raw
+                    if (iconPng != null && ICON_ENTRY.matches(name)) {
+                        data = iconPng
+                        iconReplaced = true
+                    }
                     putEntry(zos, counting, name, data, stored = name == "resources.arsc")
                 }
             }
             for ((name, data) in replacements) {
                 putEntry(zos, counting, name, data, stored = false)
             }
+        }
+        if (iconPng != null && !iconReplaced) {
+            throw IOException("Icon entry not found in the template")
         }
     }
 

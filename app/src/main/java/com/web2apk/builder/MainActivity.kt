@@ -1,5 +1,6 @@
 package com.web2apk.builder
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -63,8 +64,9 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var built by remember { mutableStateOf(false) }
     var appName by remember { mutableStateOf("Fahrzeit") }
     var appUrl by remember { mutableStateOf("https://fahrzeit.vercel.app") }
+    var iconUri by remember { mutableStateOf<Uri?>(null) }
 
-    val picker = rememberLauncherForActivityResult(
+    val zipPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) {
@@ -78,6 +80,12 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                 }
             }
         }
+    }
+
+    val iconPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) iconUri = uri
     }
 
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
@@ -104,6 +112,16 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         )
 
         Row(modifier = Modifier.padding(top = 12.dp)) {
+            Button(onClick = { iconPicker.launch(arrayOf("image/*")) }) {
+                Text("Choose icon")
+            }
+            Text(
+                if (iconUri != null) "icon selected" else "default icon",
+                modifier = Modifier.padding(start = 12.dp)
+            )
+        }
+
+        Row(modifier = Modifier.padding(top = 8.dp)) {
             Button(
                 onClick = {
                     val url = appUrl.trim()
@@ -115,7 +133,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                         scope.launch {
                             buildStatus = try {
                                 val where = withContext(Dispatchers.IO) {
-                                    ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url)
+                                    ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url, iconUri)
                                 }
                                 built = true
                                 "Saved: $where"
@@ -146,7 +164,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         }
 
         Button(
-            onClick = { picker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
+            onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
             modifier = Modifier.padding(top = 16.dp)
         ) { Text("Choose ZIP") }
 
