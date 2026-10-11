@@ -11,30 +11,57 @@ import java.io.FileOutputStream
 import java.io.FilterOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.security.MessageDigest
 import java.util.zip.CRC32
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 import java.util.zip.ZipOutputStream
+import android.os.Build
 
 object ApkBuilder {
+    private const val TEMPLATE_PACKAGE = "com.web2apk.template"
+    private const val TEMPLATE_LABEL = "Web App"
 
-    /** Builds a signed APK from the bundled template with the given name and URL. Returns the saved location. */
+    /** Same URL always gives the same package, so rebuilding updates the app instead of duplicating it. */
+    fun packageFor(url: String): String {
+        val hash = MessageDigest.getInstance("SHA-1")
+            .digest(url.trim().lowercase().toByteArray())
+            .take(6)
+            .joinToString("") { "%02x".format(it) }
+        return "com.web2apk.app.a$hash"
+    }
+
+    /** Builds a signed APK from the bundled template. Returns a description of where it was saved. */
     fun build(context: Context, appName: String, url: String): String {
         val template = File(context.cacheDir, "template.apk")
         context.assets.open("template.apk").use { input ->
             template.outputStream().use { input.copyTo(it) }
         }
 
+        val pkg = packageFor(url)
         val config = JSONObject().put("name", appName).put("url", url).toString()
         val unsigned = File(context.cacheDir, "unsigned.apk")
-        repack(template, unsigned, mapOf("assets/config.json" to config.toByteArray(Charsets.UTF_8)))
+        repack(
+            template,
+            unsigned,
+            replacements = mapOf("assets/config.json" to config.toByteArray(Charsets.UTF_8)),
+            transforms = mapOf(
+                "AndroidManifest.xml" to { raw: ByteArray ->
+                    AxmlEditor.replaceStrings(
+                        raw,
+                        mapOf(TEMPLATE_PACKAGE to pkg, TEMPLATE_LABEL to appName)
+                    )
+                }
+            )
+        )
 
         val signed = File(context.cacheDir, "signed.apk")
         if (signed.exists()) signed.delete()
         ApkSign.sign(unsigned, signed)
 
         val slug = appName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "app" }
-        return saveToDownloads(context, signed, "$slug.apk")
+        val where = saveToDownloads(context, signed, "$slug.apk")
+        return "$where ($pkg)"
     }
 
     private class CountingStream(out: OutputStream) : FilterOutputStream(out) {
@@ -50,7 +77,12 @@ object ApkBuilder {
         }
     }
 
-    private fun repack(template: File, output: File, replacements: Map<String, ByteArray>) {
+    private fun repack(
+        template: File,
+        output: File,
+        replacements: Map<String, ByteArray>,
+        transforms: Map<String, (ByteArray) -> ByteArray>
+    ) {
         val counting = CountingStream(BufferedOutputStream(FileOutputStream(output)))
         ZipOutputStream(counting).use { zos ->
             ZipFile(template).use { zf ->
@@ -58,7 +90,8 @@ object ApkBuilder {
                     val name = entry.name
                     if (entry.isDirectory) continue
                     if (name.startsWith("META-INF/") || replacements.containsKey(name)) continue
-                    val data = zf.getInputStream(entry).use { it.readBytes() }
+                    val raw = zf.getInputStream(entry).use { it.readBytes() }
+                    val data = transforms[name]?.invoke(raw) ?: raw
                     putEntry(zos, counting, name, data, stored = name == "resources.arsc")
                 }
             }
@@ -100,6 +133,14 @@ object ApkBuilder {
     }
 
     private fun saveToDownloads(context: Context, file: File, name: String): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            // Android 8-9: no MediaStore.Downloads, use the app's own external folder (no permission needed).
+            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                ?: throw IOException("No external storage")
+            val dst = File(dir, name)
+            file.copyTo(dst, overwrite = true)
+            return dst.absolutePath
+        }
         val values = ContentValues().apply {
             put(MediaStore.Downloads.DISPLAY_NAME, name)
             put(MediaStore.Downloads.MIME_TYPE, "application/vnd.android.package-archive")
