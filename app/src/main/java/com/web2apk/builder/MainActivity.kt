@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -27,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.web2apk.builder.apk.ApkBuilder
+import com.web2apk.builder.apk.Installer
 import com.web2apk.builder.importer.ImportResult
 import com.web2apk.builder.importer.ZipImporter
 import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
@@ -58,6 +60,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var result by remember { mutableStateOf<ImportResult?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var buildStatus by remember { mutableStateOf<String?>(null) }
+    var built by remember { mutableStateOf(false) }
     var appName by remember { mutableStateOf("Fahrzeit") }
     var appUrl by remember { mutableStateOf("https://fahrzeit.vercel.app") }
 
@@ -99,27 +102,44 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         )
-        Button(
-            onClick = {
-                val url = appUrl.trim()
-                if (!url.startsWith("https://")) {
-                    buildStatus = "URL must start with https://"
-                } else {
-                    buildStatus = "Building..."
-                    scope.launch {
-                        buildStatus = try {
-                            val where = withContext(Dispatchers.IO) {
-                                ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url)
+
+        Row(modifier = Modifier.padding(top = 12.dp)) {
+            Button(
+                onClick = {
+                    val url = appUrl.trim()
+                    if (!url.startsWith("https://")) {
+                        buildStatus = "URL must start with https://"
+                    } else {
+                        buildStatus = "Building..."
+                        built = false
+                        scope.launch {
+                            buildStatus = try {
+                                val where = withContext(Dispatchers.IO) {
+                                    ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url)
+                                }
+                                built = true
+                                "Saved: $where"
+                            } catch (e: Throwable) {
+                                "Build error: ${e.javaClass.simpleName}: ${e.message}"
                             }
-                            "Saved: $where"
-                        } catch (e: Throwable) {
-                            "Build error: ${e.javaClass.simpleName}: ${e.message}"
                         }
                     }
                 }
-            },
-            modifier = Modifier.padding(top = 12.dp)
-        ) { Text("Build APK") }
+            ) { Text("Build APK") }
+
+            Button(
+                onClick = {
+                    val msg = try {
+                        Installer.install(context)
+                    } catch (e: Throwable) {
+                        "Install error: ${e.javaClass.simpleName}: ${e.message}"
+                    }
+                    if (msg != null) buildStatus = msg
+                },
+                enabled = built,
+                modifier = Modifier.padding(start = 8.dp)
+            ) { Text("Install") }
+        }
 
         buildStatus?.let {
             Text(it, modifier = Modifier.padding(top = 12.dp))
