@@ -19,6 +19,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -36,7 +37,6 @@ import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import androidx.compose.material3.TextButton
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -55,6 +55,18 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private val SCREEN_MODES = listOf(
+    "normal" to "Normal bars",
+    "nostatus" to "No status bar",
+    "immersive" to "Fullscreen"
+)
+
+private val ORIENTATIONS = listOf(
+    "auto" to "Auto-rotate",
+    "portrait" to "Portrait only",
+    "landscape" to "Landscape only"
+)
+
 @Composable
 fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     val context = LocalContext.current
@@ -66,6 +78,8 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var appName by remember { mutableStateOf("Fahrzeit") }
     var appUrl by remember { mutableStateOf("https://fahrzeit.vercel.app") }
     var iconUri by remember { mutableStateOf<Uri?>(null) }
+    var screen by remember { mutableStateOf("normal") }
+    var orientation by remember { mutableStateOf("auto") }
 
     val zipPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -125,6 +139,22 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             }
         }
 
+        Button(
+            onClick = {
+                val i = SCREEN_MODES.indexOfFirst { it.first == screen }
+                screen = SCREEN_MODES[(i + 1) % SCREEN_MODES.size].first
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        ) { Text("Screen: " + SCREEN_MODES.first { it.first == screen }.second) }
+
+        Button(
+            onClick = {
+                val i = ORIENTATIONS.indexOfFirst { it.first == orientation }
+                orientation = ORIENTATIONS[(i + 1) % ORIENTATIONS.size].first
+            },
+            modifier = Modifier.padding(top = 8.dp)
+        ) { Text("Rotation: " + ORIENTATIONS.first { it.first == orientation }.second) }
+
         Row(modifier = Modifier.padding(top = 8.dp)) {
             Button(
                 onClick = {
@@ -137,7 +167,14 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                         scope.launch {
                             buildStatus = try {
                                 val where = withContext(Dispatchers.IO) {
-                                    ApkBuilder.build(context, appName.trim().ifEmpty { "App" }, url, iconUri)
+                                    ApkBuilder.build(
+                                        context,
+                                        appName.trim().ifEmpty { "App" },
+                                        url,
+                                        iconUri,
+                                        screen,
+                                        orientation
+                                    )
                                 }
                                 built = true
                                 "Saved: $where"

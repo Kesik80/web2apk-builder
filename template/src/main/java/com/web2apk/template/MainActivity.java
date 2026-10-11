@@ -4,10 +4,17 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
+import android.webkit.JavascriptInterface;
 import android.webkit.PermissionRequest;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -15,6 +22,7 @@ import android.webkit.WebResourceRequest;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.widget.FrameLayout;
 
 import org.json.JSONObject;
 
@@ -28,13 +36,48 @@ public class MainActivity extends Activity {
     private static final int REQ_MEDIA = 2;
     private static final int REQ_FILE = 3;
 
+    private static final int IMMERSIVE_FLAGS =
+            View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+                    | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+                    | View.SYSTEM_UI_FLAG_FULLSCREEN
+                    | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
+
     private WebView web;
     private String startHost = "";
+    private String screenMode = "normal";
+    private String orientation = "auto";
+    private String barsScript = "";
+    private boolean lightStatus = false;
+    private boolean lightNav = false;
+
+    private View customView;
+    private WebChromeClient.CustomViewCallback customCallback;
 
     private ValueCallback<Uri[]> fileCallback;
     private PermissionRequest pendingWebPermission;
     private GeolocationPermissions.Callback pendingGeoCallback;
     private String pendingGeoOrigin;
+
+    private String readAsset(String file) {
+        try (InputStream in = getAssets().open(file)) {
+            ByteArrayOutputStream out = new ByteArrayOutputStream();
+            byte[] buf = new byte[4096];
+            int n;
+            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
+            return out.toString("UTF-8");
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
+    private class Bridge {
+        @JavascriptInterface
+        public void colors(final String top, final String bottom) {
+            runOnUiThread(() -> applyBars(top, bottom));
+        }
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -42,19 +85,23 @@ public class MainActivity extends Activity {
 
         String url = "about:blank";
         String name = "Web App";
-        try (InputStream in = getAssets().open("config.json")) {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-            byte[] buf = new byte[4096];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            JSONObject c = new JSONObject(out.toString("UTF-8"));
+        try {
+            JSONObject c = new JSONObject(readAsset("config.json"));
             url = c.optString("url", url);
             name = c.optString("name", name);
+            screenMode = c.optString("screen", "normal");
+            orientation = c.optString("orientation", "auto");
         } catch (Exception ignored) {
         }
         setTitle(name);
+        barsScript = readAsset("bars.js");
         String host = Uri.parse(url).getHost();
         startHost = host == null ? "" : host;
+
+        if ("nostatus".equals(screenMode)) {
+            getWindow().addFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN);
+        }
+        applyOrientation();
 
         web = new WebView(this);
         WebSettings s = web.getSettings();
@@ -63,6 +110,8 @@ public class MainActivity extends Activity {
         s.setGeolocationEnabled(true);
         s.setAllowFileAccess(false);
         s.setMediaPlaybackRequiresUserGesture(false);
+
+        web.addJavascriptInterface(new Bridge(), "W2A");
 
         web.setWebViewClient(new WebViewClient() {
             @Override
@@ -75,6 +124,14 @@ public class MainActivity extends Activity {
                 }
                 openExternal(u);
                 return true;
+            }
+
+            @Override
+            public void onPageFinished(WebView view, String pageUrl) {
+                Uri u = Uri.parse(pageUrl);
+                if (!barsScript.isEmpty() && isSameSite(u.getHost())) {
+                    view.evaluateJavascript(barsScript, null);
+                }
             }
         });
 
@@ -138,13 +195,100 @@ public class MainActivity extends Activity {
                 }
                 return true;
             }
+
+            @Override
+            public void onShowCustomView(View view, CustomViewCallback callback) {
+                if (customView != null) {
+                    callback.onCustomViewHidden();
+                    return;
+                }
+                customView = view;
+                customCallback = callback;
+                view.setBackgroundColor(Color.BLACK);
+                ((FrameLayout) getWindow().getDecorView()).addView(view,
+                        new FrameLayout.LayoutParams(
+                                ViewGroup.LayoutParams.MATCH_PARENT,
+                                ViewGroup.LayoutParams.MATCH_PARENT));
+                web.setVisibility(View.GONE);
+                if ("portrait".equals(orientation)) {
+                    setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE);
+                }
+                updateUi();
+            }
+
+            @Override
+            public void onHideCustomView() {
+                hideCustomView();
+            }
         });
 
         web.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimeType, contentLength) ->
                 openExternal(Uri.parse(downloadUrl)));
 
         setContentView(web);
+        updateUi();
         web.loadUrl(url);
+    }
+
+    private void applyOrientation() {
+        int o = ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
+        if ("portrait".equals(orientation)) {
+            o = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
+        } else if ("landscape".equals(orientation)) {
+            o = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+        }
+        setRequestedOrientation(o);
+    }
+
+    private void hideCustomView() {
+        if (customView == null) return;
+        ((FrameLayout) getWindow().getDecorView()).removeView(customView);
+        customView = null;
+        web.setVisibility(View.VISIBLE);
+        applyOrientation();
+        if (customCallback != null) {
+            customCallback.onCustomViewHidden();
+            customCallback = null;
+        }
+        updateUi();
+    }
+
+    private void applyBars(String top, String bottom) {
+        try {
+            int t = Color.parseColor(top);
+            int b = Color.parseColor(bottom);
+            Window w = getWindow();
+            w.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
+            w.setStatusBarColor(t);
+            w.setNavigationBarColor(b);
+            lightStatus = isLight(t);
+            lightNav = isLight(b);
+            updateUi();
+        } catch (IllegalArgumentException ignored) {
+        }
+    }
+
+    private static boolean isLight(int c) {
+        double l = 0.299 * Color.red(c) + 0.587 * Color.green(c) + 0.114 * Color.blue(c);
+        return l / 255.0 > 0.5;
+    }
+
+    private void updateUi() {
+        int f;
+        if (customView != null || "immersive".equals(screenMode)) {
+            f = IMMERSIVE_FLAGS;
+        } else {
+            f = 0;
+            if (lightStatus) f |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
+            if (lightNav) f |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
+        }
+        getWindow().getDecorView().setSystemUiVisibility(f);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) updateUi();
     }
 
     private static String bare(String host) {
@@ -201,7 +345,9 @@ public class MainActivity extends Activity {
 
     @Override
     public void onBackPressed() {
-        if (web != null && web.canGoBack()) {
+        if (customView != null) {
+            hideCustomView();
+        } else if (web != null && web.canGoBack()) {
             web.goBack();
         } else {
             super.onBackPressed();

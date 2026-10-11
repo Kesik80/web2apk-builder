@@ -34,14 +34,26 @@ object ApkBuilder {
     }
 
     /** Builds a signed APK from the bundled template. Returns a description of where it was saved. */
-    fun build(context: Context, appName: String, url: String, iconUri: Uri?): String {
+    fun build(
+        context: Context,
+        appName: String,
+        url: String,
+        iconUri: Uri?,
+        screen: String,
+        orientation: String
+    ): String {
         val template = File(context.cacheDir, "template.apk")
         context.assets.open("template.apk").use { input ->
             template.outputStream().use { input.copyTo(it) }
         }
 
         val pkg = packageFor(url)
-        val config = JSONObject().put("name", appName).put("url", url).toString()
+        val config = JSONObject()
+            .put("name", appName)
+            .put("url", url)
+            .put("screen", screen)
+            .put("orientation", orientation)
+            .toString()
 
         var iconSource = "default"
         val iconPng: ByteArray? = if (iconUri != null) {

@@ -31,6 +31,10 @@ The site icon is looked up in this order: `manifest.json` icons, `apple-touch-ic
 - Links within the same site stay in the app; other links open in the browser
 - HTTPS only
 - Back button navigates the WebView history
+- Status bar and navigation bar automatically match the page colors (follows theme changes)
+- Per-app screen mode: normal bars, no status bar, or fullscreen
+- Per-app rotation: auto, portrait only, or landscape only
+- Fullscreen video support
 
 ## Stack
 
@@ -68,8 +72,9 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.5 | App name and unique package per app | done |
 | v0.6 | Custom launcher icon | done |
 | v0.7 | Icon fetched from the site | done |
-| v0.8 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
-| v0.9 | Signing key backup / restore | planned |
+| v0.8 | System bar colors, screen modes, rotation lock, fullscreen video | done |
+| v0.9 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
+| v0.10 | Signing key backup / restore | planned |
 | v1.0 | Release | planned |
 
 ## Known limitations
