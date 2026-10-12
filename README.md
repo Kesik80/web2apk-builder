@@ -8,7 +8,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 
 ## Status
 
-**v0.9**: URL mode works end to end. The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
+**v0.10**: URL mode works end to end. The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
@@ -16,7 +16,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 2. On build, it repacks the template:
    - writes the site name, URL, screen mode and rotation into `assets/config.json`;
    - edits the compiled binary `AndroidManifest.xml` (package name and app label);
-   - replaces the launcher icon (cropped to a square, 192×192 PNG).
+   - replaces the launcher icon (adaptive icon: the picture is cropped to a square, its edge color becomes the background).
 3. The APK is signed on the device (apksig, AndroidKeyStore RSA-2048 key, v2 + v3 schemes).
 4. The signed APK is saved to Downloads and can be installed right from the app.
 
@@ -39,6 +39,7 @@ The site icon is looked up in this order: `manifest.json` icons, `apple-touch-ic
 - Per-app screen mode: normal bars, no status bar, or fullscreen
 - Per-app rotation: auto, portrait only, or landscape only
 - Fullscreen video support
+- Launcher icon fills the whole icon shape (adaptive icon, background color taken from the picture edges)
 
 ## Stack
 
@@ -79,9 +80,10 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.7 | Icon fetched from the site | done |
 | v0.8 | System bar colors, screen modes, rotation lock, fullscreen video | done |
 | v0.9 | Builder icon, UI translations (en, ru, uk, de) | done |
-| v0.10 | Full-bleed icons for built apps, block the site's install prompt | planned |
-| v0.11 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
-| v0.12 | Signing key backup / restore | planned |
+| v0.10 | Full-bleed adaptive icons for built apps | done |
+| v0.11 | Block the site's install prompt inside built apps | planned |
+| v0.12 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
+| v0.13 | Signing key backup / restore | planned |
 | v1.0 | Release | planned |
 
 ## Known limitations

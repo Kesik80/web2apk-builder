@@ -2,6 +2,7 @@ package com.web2apk.builder.apk
 
 import android.content.ContentValues
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
@@ -57,14 +58,14 @@ object ApkBuilder {
             .toString()
 
         var iconSource = context.getString(R.string.icon_src_default)
-        val iconPng: ByteArray? = if (iconUri != null) {
+        val icons: IconSet? = if (iconUri != null) {
             iconSource = context.getString(R.string.icon_src_chosen)
-            IconMaker.toPng(context, iconUri)
+            IconMaker.makeSet(IconMaker.readUri(context, iconUri))
         } else {
             val raw = try { IconFetcher.fetch(url) } catch (e: Exception) { null }
             if (raw != null) {
                 try {
-                    IconMaker.fromBytes(raw).also { iconSource = context.getString(R.string.icon_src_site) }
+                    IconMaker.makeSet(raw).also { iconSource = context.getString(R.string.icon_src_site) }
                 } catch (e: Exception) {
                     null
                 }
@@ -84,7 +85,7 @@ object ApkBuilder {
                     )
                 }
             ),
-            iconPng = iconPng
+            icons = icons
         )
 
         val signed = File(context.cacheDir, "signed.apk")
@@ -114,7 +115,7 @@ object ApkBuilder {
         output: File,
         replacements: Map<String, ByteArray>,
         transforms: Map<String, (ByteArray) -> ByteArray>,
-        iconPng: ByteArray?
+        icons: IconSet?
     ) {
         val counting = CountingStream(BufferedOutputStream(FileOutputStream(output)))
         var iconReplaced = false
@@ -126,8 +127,15 @@ object ApkBuilder {
                     if (name.startsWith("META-INF/") || replacements.containsKey(name)) continue
                     val raw = zf.getInputStream(entry).use { it.readBytes() }
                     var data = transforms[name]?.invoke(raw) ?: raw
-                    if (iconPng != null && ICON_ENTRY.matches(name)) {
-                        data = iconPng
+                    if (icons != null && ICON_ENTRY.matches(name)) {
+                        // Release builds shorten resource paths, so the icon layers are told apart by size:
+                        // tiny = solid background, large = adaptive foreground, anything else = legacy icon.
+                        val w = imageWidth(raw)
+                        data = when {
+                            w <= 16 -> icons.background
+                            w >= 400 -> icons.foreground
+                            else -> icons.legacy
+                        }
                         iconReplaced = true
                     }
                     putEntry(zos, counting, name, data, stored = name == "resources.arsc")
@@ -137,9 +145,15 @@ object ApkBuilder {
                 putEntry(zos, counting, name, data, stored = false)
             }
         }
-        if (iconPng != null && !iconReplaced) {
+        if (icons != null && !iconReplaced) {
             throw IOException("Icon entry not found in the template")
         }
+    }
+
+    private fun imageWidth(data: ByteArray): Int {
+        val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(data, 0, data.size, o)
+        return o.outWidth
     }
 
     private fun putEntry(
