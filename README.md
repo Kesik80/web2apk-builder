@@ -1,18 +1,22 @@
+<p align="center">
+  <img src="docs/logo.png" alt="Web2APK Builder" width="320">
+</p>
+
 # Web2APK Builder
 
 Android app that turns a website (URL) into an installable APK, entirely on the phone, with no PC needed. For personal use (not for Google Play).
 
 ## Status
 
-**v0.7**: URL mode works end to end. Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), tap **Build APK**, then **Install**.
+**v0.8**: URL mode works end to end. Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
 1. The builder bundles a prebuilt WebView "template" APK in its assets.
 2. On build, it repacks the template:
-    - writes the site name and URL into `assets/config.json`;
-    - edits the compiled binary `AndroidManifest.xml` (package name and app label);
-    - replaces the launcher icon (cropped to a square, 192×192 PNG).
+   - writes the site name, URL, screen mode and rotation into `assets/config.json`;
+   - edits the compiled binary `AndroidManifest.xml` (package name and app label);
+   - replaces the launcher icon (cropped to a square, 192×192 PNG).
 3. The APK is signed on the device (apksig, AndroidKeyStore RSA-2048 key, v2 + v3 schemes).
 4. The signed APK is saved to Downloads and can be installed right from the app.
 
@@ -46,10 +50,11 @@ The site icon is looked up in this order: `manifest.json` icons, `apple-touch-ic
 ## Project layout
 
 - `app/` — the Builder app
-    - `apk/` — `ApkBuilder`, `AxmlEditor`, `ApkSign`, `IconMaker`, `IconFetcher`, `Installer`
-    - `importer/` — ZIP import
-    - `assets/template.apk` — prebuilt unsigned template
+  - `apk/` — `ApkBuilder`, `AxmlEditor`, `ApkSign`, `IconMaker`, `IconFetcher`, `Installer`
+  - `importer/` — ZIP import
+  - `assets/template.apk` — prebuilt unsigned template
 - `template/` — source of the WebView template app
+  - `assets/bars.js` — script that detects page colors for the system bars
 
 ### Rebuilding the template
 
@@ -73,8 +78,9 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.6 | Custom launcher icon | done |
 | v0.7 | Icon fetched from the site | done |
 | v0.8 | System bar colors, screen modes, rotation lock, fullscreen video | done |
-| v0.9 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
-| v0.10 | Signing key backup / restore | planned |
+| v0.9 | Builder icon, UI translations (ru, uk, de, en), full-bleed icons for built apps, block the site's install prompt | planned |
+| v0.10 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
+| v0.11 | Signing key backup / restore | planned |
 | v1.0 | Release | planned |
 
 ## Known limitations
