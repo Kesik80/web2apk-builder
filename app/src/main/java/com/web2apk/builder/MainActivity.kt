@@ -28,6 +28,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.web2apk.builder.apk.ApkBuilder
 import com.web2apk.builder.apk.Installer
@@ -56,15 +57,15 @@ class MainActivity : ComponentActivity() {
 }
 
 private val SCREEN_MODES = listOf(
-    "normal" to "Normal bars",
-    "nostatus" to "No status bar",
-    "immersive" to "Fullscreen"
+    "normal" to R.string.screen_normal,
+    "nostatus" to R.string.screen_nostatus,
+    "immersive" to R.string.screen_immersive
 )
 
 private val ORIENTATIONS = listOf(
-    "auto" to "Auto-rotate",
-    "portrait" to "Portrait only",
-    "landscape" to "Landscape only"
+    "auto" to R.string.rot_auto,
+    "portrait" to R.string.rot_portrait,
+    "landscape" to R.string.rot_landscape
 )
 
 @Composable
@@ -114,28 +115,28 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         OutlinedTextField(
             value = appName,
             onValueChange = { appName = it },
-            label = { Text("App name") },
+            label = { Text(stringResource(R.string.field_app_name)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(top = 16.dp)
         )
         OutlinedTextField(
             value = appUrl,
             onValueChange = { appUrl = it },
-            label = { Text("Site URL (https)") },
+            label = { Text(stringResource(R.string.field_site_url)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
         )
 
         Row(modifier = Modifier.padding(top = 12.dp)) {
             Button(onClick = { iconPicker.launch(arrayOf("image/*")) }) {
-                Text("Choose icon")
+                Text(stringResource(R.string.btn_choose_icon))
             }
             Text(
-                if (iconUri != null) "icon: chosen" else "icon: from site",
+                stringResource(if (iconUri != null) R.string.icon_chosen else R.string.icon_from_site),
                 modifier = Modifier.padding(start = 12.dp)
             )
             if (iconUri != null) {
-                TextButton(onClick = { iconUri = null }) { Text("Reset") }
+                TextButton(onClick = { iconUri = null }) { Text(stringResource(R.string.btn_reset)) }
             }
         }
 
@@ -145,7 +146,14 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                 screen = SCREEN_MODES[(i + 1) % SCREEN_MODES.size].first
             },
             modifier = Modifier.padding(top = 8.dp)
-        ) { Text("Screen: " + SCREEN_MODES.first { it.first == screen }.second) }
+        ) {
+            Text(
+                stringResource(
+                    R.string.screen_label,
+                    stringResource(SCREEN_MODES.first { it.first == screen }.second)
+                )
+            )
+        }
 
         Button(
             onClick = {
@@ -153,16 +161,23 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                 orientation = ORIENTATIONS[(i + 1) % ORIENTATIONS.size].first
             },
             modifier = Modifier.padding(top = 8.dp)
-        ) { Text("Rotation: " + ORIENTATIONS.first { it.first == orientation }.second) }
+        ) {
+            Text(
+                stringResource(
+                    R.string.rot_label,
+                    stringResource(ORIENTATIONS.first { it.first == orientation }.second)
+                )
+            )
+        }
 
         Row(modifier = Modifier.padding(top = 8.dp)) {
             Button(
                 onClick = {
                     val url = appUrl.trim()
                     if (!url.startsWith("https://")) {
-                        buildStatus = "URL must start with https://"
+                        buildStatus = context.getString(R.string.err_https)
                     } else {
-                        buildStatus = "Building..."
+                        buildStatus = context.getString(R.string.status_building)
                         built = false
                         scope.launch {
                             buildStatus = try {
@@ -177,27 +192,33 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                                     )
                                 }
                                 built = true
-                                "Saved: $where"
+                                context.getString(R.string.status_saved, where)
                             } catch (e: Throwable) {
-                                "Build error: ${e.javaClass.simpleName}: ${e.message}"
+                                context.getString(
+                                    R.string.err_build,
+                                    "${e.javaClass.simpleName}: ${e.message}"
+                                )
                             }
                         }
                     }
                 }
-            ) { Text("Build APK") }
+            ) { Text(stringResource(R.string.btn_build)) }
 
             Button(
                 onClick = {
                     val msg = try {
                         Installer.install(context)
                     } catch (e: Throwable) {
-                        "Install error: ${e.javaClass.simpleName}: ${e.message}"
+                        context.getString(
+                            R.string.err_install,
+                            "${e.javaClass.simpleName}: ${e.message}"
+                        )
                     }
                     if (msg != null) buildStatus = msg
                 },
                 enabled = built,
                 modifier = Modifier.padding(start = 8.dp)
-            ) { Text("Install") }
+            ) { Text(stringResource(R.string.btn_install)) }
         }
 
         buildStatus?.let {
@@ -207,15 +228,21 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         Button(
             onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
             modifier = Modifier.padding(top = 16.dp)
-        ) { Text("Choose ZIP") }
+        ) { Text(stringResource(R.string.btn_choose_zip)) }
 
         error?.let {
-            Text("Error: $it", color = MaterialTheme.colorScheme.error, modifier = Modifier.padding(top = 12.dp))
+            Text(
+                stringResource(R.string.err_generic, it),
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.padding(top = 12.dp)
+            )
         }
         result?.let { r ->
             Text(
-                if (r.hasIndex) "index.html found, ${r.files.size} files"
-                else "No index.html in the archive root, ${r.files.size} files",
+                stringResource(
+                    if (r.hasIndex) R.string.zip_ok else R.string.zip_no_index,
+                    r.files.size
+                ),
                 modifier = Modifier.padding(vertical = 12.dp)
             )
             LazyColumn {

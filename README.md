@@ -8,7 +8,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 
 ## Status
 
-**v0.8**: URL mode works end to end. Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
+**v0.9**: URL mode works end to end. The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL, optionally pick an icon (otherwise it is fetched from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
@@ -78,9 +78,10 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.6 | Custom launcher icon | done |
 | v0.7 | Icon fetched from the site | done |
 | v0.8 | System bar colors, screen modes, rotation lock, fullscreen video | done |
-| v0.9 | Builder icon, UI translations (ru, uk, de, en), full-bleed icons for built apps, block the site's install prompt | planned |
-| v0.10 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
-| v0.11 | Signing key backup / restore | planned |
+| v0.9 | Builder icon, UI translations (en, ru, uk, de) | done |
+| v0.10 | Full-bleed icons for built apps, block the site's install prompt | planned |
+| v0.11 | ZIP mode (offline sites via WebViewAssetLoader) | planned |
+| v0.12 | Signing key backup / restore | planned |
 | v1.0 | Release | planned |
 
 ## Known limitations

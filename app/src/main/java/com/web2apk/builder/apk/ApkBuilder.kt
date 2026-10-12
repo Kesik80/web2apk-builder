@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.web2apk.builder.R
 import org.json.JSONObject
 import java.io.BufferedOutputStream
 import java.io.File
@@ -55,15 +56,15 @@ object ApkBuilder {
             .put("orientation", orientation)
             .toString()
 
-        var iconSource = "default"
+        var iconSource = context.getString(R.string.icon_src_default)
         val iconPng: ByteArray? = if (iconUri != null) {
-            iconSource = "chosen"
+            iconSource = context.getString(R.string.icon_src_chosen)
             IconMaker.toPng(context, iconUri)
         } else {
             val raw = try { IconFetcher.fetch(url) } catch (e: Exception) { null }
             if (raw != null) {
                 try {
-                    IconMaker.fromBytes(raw).also { iconSource = "from site" }
+                    IconMaker.fromBytes(raw).also { iconSource = context.getString(R.string.icon_src_site) }
                 } catch (e: Exception) {
                     null
                 }
@@ -92,7 +93,7 @@ object ApkBuilder {
 
         val slug = appName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "app" }
         val where = saveToDownloads(context, signed, "$slug.apk")
-        return "$where ($pkg), icon: $iconSource"
+        return context.getString(R.string.build_result, where, pkg, iconSource)
     }
 
     private class CountingStream(out: OutputStream) : FilterOutputStream(out) {

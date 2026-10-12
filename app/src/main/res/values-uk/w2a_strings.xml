@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="field_app_name">Назва застосунку</string>
+    <string name="field_site_url">Адреса сайту (https)</string>
+    <string name="btn_choose_icon">Обрати іконку</string>
+    <string name="icon_from_site">іконка: із сайту</string>
+    <string name="icon_chosen">іконка: обрана</string>
+    <string name="btn_reset">Скинути</string>
+    <string name="screen_label">Екран: %1$s</string>
+    <string name="screen_normal">Звичайні панелі</string>
+    <string name="screen_nostatus">Без рядка стану</string>
+    <string name="screen_immersive">Повний екран</string>
+    <string name="rot_label">Поворот: %1$s</string>
+    <string name="rot_auto">Автоповорот</string>
+    <string name="rot_portrait">Лише портрет</string>
+    <string name="rot_landscape">Лише ландшафт</string>
+    <string name="btn_build">Зібрати APK</string>
+    <string name="btn_install">Встановити</string>
+    <string name="btn_choose_zip">Обрати ZIP</string>
+    <string name="status_building">Збирання...</string>
+    <string name="status_saved">Збережено: %1$s</string>
+    <string name="build_result">%1$s (%2$s), іконка: %3$s</string>
+    <string name="icon_src_default">за замовчуванням</string>
+    <string name="icon_src_chosen">обрана</string>
+    <string name="icon_src_site">із сайту</string>
+    <string name="err_https">Адреса має починатися з https://</string>
+    <string name="err_build">Помилка збирання: %1$s</string>
+    <string name="err_install">Помилка встановлення: %1$s</string>
+    <string name="err_generic">Помилка: %1$s</string>
+    <string name="zip_ok">index.html знайдено, файлів: %1$d</string>
+    <string name="zip_no_index">У корені архіву немає index.html, файлів: %1$d</string>
+    <string name="inst_build_first">Спочатку зберіть APK</string>
+    <string name="inst_allow">Дозвольте встановлення з цього застосунку й натисніть «Встановити» ще раз</string>
+</resources>

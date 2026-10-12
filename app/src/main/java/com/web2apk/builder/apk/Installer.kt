@@ -5,13 +5,14 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.Settings
 import androidx.core.content.FileProvider
+import com.web2apk.builder.R
 import java.io.File
 
 object Installer {
     /** Returns a message for the user, or null if the installer was launched. */
     fun install(context: Context): String? {
         val src = File(context.cacheDir, "signed.apk")
-        if (!src.exists()) return "Build the APK first"
+        if (!src.exists()) return context.getString(R.string.inst_build_first)
 
         if (!context.packageManager.canRequestPackageInstalls()) {
             context.startActivity(
@@ -20,7 +21,7 @@ object Installer {
                     Uri.parse("package:${context.packageName}")
                 ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
-            return "Allow installs from this app, then press Install again"
+            return context.getString(R.string.inst_allow)
         }
 
         val dir = File(context.cacheDir, "apk").apply { mkdirs() }

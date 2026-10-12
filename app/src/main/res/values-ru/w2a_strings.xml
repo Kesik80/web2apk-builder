@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="field_app_name">Название приложения</string>
+    <string name="field_site_url">Адрес сайта (https)</string>
+    <string name="btn_choose_icon">Выбрать иконку</string>
+    <string name="icon_from_site">иконка: с сайта</string>
+    <string name="icon_chosen">иконка: выбрана</string>
+    <string name="btn_reset">Сбросить</string>
+    <string name="screen_label">Экран: %1$s</string>
+    <string name="screen_normal">Обычные панели</string>
+    <string name="screen_nostatus">Без строки состояния</string>
+    <string name="screen_immersive">Полный экран</string>
+    <string name="rot_label">Поворот: %1$s</string>
+    <string name="rot_auto">Автоповорот</string>
+    <string name="rot_portrait">Только портрет</string>
+    <string name="rot_landscape">Только ландшафт</string>
+    <string name="btn_build">Собрать APK</string>
+    <string name="btn_install">Установить</string>
+    <string name="btn_choose_zip">Выбрать ZIP</string>
+    <string name="status_building">Сборка...</string>
+    <string name="status_saved">Сохранено: %1$s</string>
+    <string name="build_result">%1$s (%2$s), иконка: %3$s</string>
+    <string name="icon_src_default">по умолчанию</string>
+    <string name="icon_src_chosen">выбрана</string>
+    <string name="icon_src_site">с сайта</string>
+    <string name="err_https">Адрес должен начинаться с https://</string>
+    <string name="err_build">Ошибка сборки: %1$s</string>
+    <string name="err_install">Ошибка установки: %1$s</string>
+    <string name="err_generic">Ошибка: %1$s</string>
+    <string name="zip_ok">index.html найден, файлов: %1$d</string>
+    <string name="zip_no_index">В корне архива нет index.html, файлов: %1$d</string>
+    <string name="inst_build_first">Сначала соберите APK</string>
+    <string name="inst_allow">Разрешите установку из этого приложения и нажмите «Установить» ещё раз</string>
+</resources>

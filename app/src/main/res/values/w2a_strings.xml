@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="field_app_name">App name</string>
+    <string name="field_site_url">Site URL (https)</string>
+    <string name="btn_choose_icon">Choose icon</string>
+    <string name="icon_from_site">icon: from site</string>
+    <string name="icon_chosen">icon: chosen</string>
+    <string name="btn_reset">Reset</string>
+    <string name="screen_label">Screen: %1$s</string>
+    <string name="screen_normal">Normal bars</string>
+    <string name="screen_nostatus">No status bar</string>
+    <string name="screen_immersive">Fullscreen</string>
+    <string name="rot_label">Rotation: %1$s</string>
+    <string name="rot_auto">Auto-rotate</string>
+    <string name="rot_portrait">Portrait only</string>
+    <string name="rot_landscape">Landscape only</string>
+    <string name="btn_build">Build APK</string>
+    <string name="btn_install">Install</string>
+    <string name="btn_choose_zip">Choose ZIP</string>
+    <string name="status_building">Building...</string>
+    <string name="status_saved">Saved: %1$s</string>
+    <string name="build_result">%1$s (%2$s), icon: %3$s</string>
+    <string name="icon_src_default">default</string>
+    <string name="icon_src_chosen">chosen</string>
+    <string name="icon_src_site">from site</string>
+    <string name="err_https">URL must start with https://</string>
+    <string name="err_build">Build error: %1$s</string>
+    <string name="err_install">Install error: %1$s</string>
+    <string name="err_generic">Error: %1$s</string>
+    <string name="zip_ok">index.html found, %1$d files</string>
+    <string name="zip_no_index">No index.html in the archive root, %1$d files</string>
+    <string name="inst_build_first">Build the APK first</string>
+    <string name="inst_allow">Allow installs from this app, then press Install again</string>
+</resources>
