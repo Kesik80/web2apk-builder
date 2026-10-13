@@ -1,0 +1,6 @@
+v0.11: sites see the app as installed (no install banners)
+
+- template: new assets/early.js pretends display-mode: standalone and navigator.standalone, swallows beforeinstallprompt
+- template: injected on progress and on page finished; user agent now ends with "Web2APK"
+- version bump: builder 0.11, template 1.5
+- README: roadmap and features updated

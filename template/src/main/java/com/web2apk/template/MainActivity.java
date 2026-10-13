@@ -49,6 +49,7 @@ public class MainActivity extends Activity {
     private String screenMode = "normal";
     private String orientation = "auto";
     private String barsScript = "";
+    private String earlyScript = "";
     private boolean lightStatus = false;
     private boolean lightNav = false;
 
@@ -95,6 +96,7 @@ public class MainActivity extends Activity {
         }
         setTitle(name);
         barsScript = readAsset("bars.js");
+        earlyScript = readAsset("early.js");
         String host = Uri.parse(url).getHost();
         startHost = host == null ? "" : host;
 
@@ -110,6 +112,7 @@ public class MainActivity extends Activity {
         s.setGeolocationEnabled(true);
         s.setAllowFileAccess(false);
         s.setMediaPlaybackRequiresUserGesture(false);
+        s.setUserAgentString(s.getUserAgentString() + " Web2APK");
 
         web.addJavascriptInterface(new Bridge(), "W2A");
 
@@ -129,13 +132,23 @@ public class MainActivity extends Activity {
             @Override
             public void onPageFinished(WebView view, String pageUrl) {
                 Uri u = Uri.parse(pageUrl);
-                if (!barsScript.isEmpty() && isSameSite(u.getHost())) {
-                    view.evaluateJavascript(barsScript, null);
+                if (isSameSite(u.getHost())) {
+                    if (!earlyScript.isEmpty()) view.evaluateJavascript(earlyScript, null);
+                    if (!barsScript.isEmpty()) view.evaluateJavascript(barsScript, null);
                 }
             }
         });
 
         web.setWebChromeClient(new WebChromeClient() {
+            @Override
+            public void onProgressChanged(WebView view, int newProgress) {
+                // Inject as early as possible; the script guards itself against running twice.
+                if (newProgress >= 5 && !earlyScript.isEmpty()) {
+                    Uri u = Uri.parse(String.valueOf(view.getUrl()));
+                    if (isSameSite(u.getHost())) view.evaluateJavascript(earlyScript, null);
+                }
+            }
+
             @Override
             public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
                 if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
