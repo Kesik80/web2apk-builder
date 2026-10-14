@@ -8,7 +8,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 
 ## Status
 
-**v0.12**: URL mode and ZIP mode work end to end. The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
+**v0.13**: URL mode and ZIP mode work end to end; built apps can keep sending GPS with the screen off (background location bridge). The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
@@ -47,9 +47,31 @@ The site icon is looked up in this order: `manifest.json` icons, `apple-touch-ic
 - Per-app screen mode: normal bars, no status bar, or fullscreen
 - Per-app rotation: auto, portrait only, or landscape only
 - Fullscreen video support
+- Background location for the site (see below)
 - ZIP mode: the site is packed into the APK and works offline (service workers are served from the package too)
 - Sites see the app as an installed PWA (display-mode: standalone), so their own "install app" banners hide; the user agent ends with `Web2APK`
 - Launcher icon fills the whole icon shape (adaptive icon, background color taken from the picture edges)
+
+### Background location (template 1.7+)
+
+A web page gets no GPS once the screen is off or another app is in front. Built apps therefore offer the site a small JavaScript bridge to a native foreground service (`LocationService`) that keeps receiving positions and sends each one directly to a URL chosen by the site, so it does not matter that the WebView sleeps.
+
+```js
+if (window.W2A && W2A.bgLocationAvailable && W2A.bgLocationAvailable()) {
+  W2A.bgLocationStart(JSON.stringify({
+    url: 'https://example-default-rtdb.firebaseio.com/sessions/ABC.json', // https only
+    extra: { active: true },       // merged into every update
+    stop:  { active: false },      // sent once when stopped from the notification
+    intervalMs: 5000,
+    title: 'My app', text: 'Sharing location'
+  }));
+}
+W2A.bgLocationRunning();  // true while the service runs
+W2A.bgLocationStop();
+W2A.bgBatterySettings();  // opens "ignore battery optimization" for this app
+```
+
+Each update is `POST` with `X-HTTP-Method-Override: PATCH` and the body `{...extra, lat, lng, ts, acc, speed, native: true}` (Firebase Realtime Database REST accepts this). Only the newest position is sent if the network is slow. The service shows an ongoing notification with a **Stop** button, holds a partial wake lock (max 12 h) and asks once to be excluded from battery optimization. Only pages of the wrapped site can start it. On HyperOS/MIUI also set the app's battery saver to "No restrictions".
 
 ## Stack
 
@@ -95,7 +117,8 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.10 | Full-bleed adaptive icons for built apps | done |
 | v0.11 | Sites treat built apps as installed (no install banners) | done |
 | v0.12 | ZIP mode (offline sites served from the APK) | done |
-| v0.13 | Signing key backup / restore | planned |
+| v0.13 | Background location bridge for sites (foreground service, works with the screen off) | done |
+| v0.14 | Signing key backup / restore | planned |
 | v1.0 | Release | planned |
 
 ## Known limitations

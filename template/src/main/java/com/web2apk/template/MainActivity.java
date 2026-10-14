@@ -4,12 +4,15 @@ import android.Manifest;
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
@@ -46,6 +49,7 @@ public class MainActivity extends Activity {
     private static final int REQ_GEO = 1;
     private static final int REQ_MEDIA = 2;
     private static final int REQ_FILE = 3;
+    private static final int REQ_BG_LOCATION = 4;
 
     private static final int IMMERSIVE_FLAGS =
             View.SYSTEM_UI_FLAG_LAYOUT_STABLE
@@ -75,6 +79,7 @@ public class MainActivity extends Activity {
     private PermissionRequest pendingWebPermission;
     private GeolocationPermissions.Callback pendingGeoCallback;
     private String pendingGeoOrigin;
+    private String pendingBgConfig;
 
     private String readAsset(String file) {
         try (InputStream in = getAssets().open(file)) {
@@ -92,6 +97,95 @@ public class MainActivity extends Activity {
         @JavascriptInterface
         public void colors(final String top, final String bottom) {
             runOnUiThread(() -> applyBars(top, bottom));
+        }
+
+        // ---- Background location (see LocationService) ----
+
+        @JavascriptInterface
+        public boolean bgLocationAvailable() {
+            return true;
+        }
+
+        @JavascriptInterface
+        public boolean bgLocationRunning() {
+            return LocationService.running;
+        }
+
+        @JavascriptInterface
+        public void bgLocationStart(final String configJson) {
+            runOnUiThread(() -> {
+                // Only the wrapped site may start it, not a foreign iframe
+                if (web == null || !isSameSite(Uri.parse(String.valueOf(web.getUrl())).getHost())) return;
+                pendingBgConfig = configJson;
+                ensureBgPermissions();
+            });
+        }
+
+        @JavascriptInterface
+        public void bgLocationStop() {
+            runOnUiThread(() -> {
+                pendingBgConfig = null;
+                stopService(new Intent(MainActivity.this, LocationService.class));
+            });
+        }
+
+        @JavascriptInterface
+        public void bgBatterySettings() {
+            runOnUiThread(() -> openBatterySettings());
+        }
+    }
+
+    private void ensureBgPermissions() {
+        List<String> need = new ArrayList<>();
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            need.add(Manifest.permission.ACCESS_FINE_LOCATION);
+            need.add(Manifest.permission.ACCESS_COARSE_LOCATION);
+        }
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            need.add(Manifest.permission.POST_NOTIFICATIONS);
+        }
+        if (need.isEmpty()) {
+            startBgLocation();
+        } else {
+            requestPermissions(need.toArray(new String[0]), REQ_BG_LOCATION);
+        }
+    }
+
+    private void startBgLocation() {
+        String cfg = pendingBgConfig;
+        pendingBgConfig = null;
+        if (cfg == null) return;
+        if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            return;
+        }
+        Intent i = new Intent(this, LocationService.class).putExtra(LocationService.EXTRA_CONFIG, cfg);
+        try {
+            if (Build.VERSION.SDK_INT >= 26) startForegroundService(i); else startService(i);
+        } catch (Exception ignored) {
+            return;
+        }
+        // Battery optimization stops the service with the screen off on many phones.
+        // Ask once; afterwards the page can open the dialog via W2A.bgBatterySettings().
+        SharedPreferences prefs = getSharedPreferences("w2a", MODE_PRIVATE);
+        if (!prefs.getBoolean("askedBattery", false)) {
+            prefs.edit().putBoolean("askedBattery", true).apply();
+            openBatterySettings();
+        }
+    }
+
+    private void openBatterySettings() {
+        PowerManager pm = (PowerManager) getSystemService(POWER_SERVICE);
+        if (pm != null && pm.isIgnoringBatteryOptimizations(getPackageName())) return;
+        try {
+            startActivity(new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName())));
+        } catch (Exception e) {
+            try {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            } catch (Exception ignored) {
+            }
         }
     }
 
@@ -522,6 +616,8 @@ public class MainActivity extends Activity {
             pendingGeoCallback.invoke(pendingGeoOrigin, any, false);
             pendingGeoCallback = null;
             pendingGeoOrigin = null;
+        } else if (requestCode == REQ_BG_LOCATION) {
+            startBgLocation();   // checks the location permission itself
         } else if (requestCode == REQ_MEDIA && pendingWebPermission != null) {
             boolean all = grantResults.length > 0;
             for (int g : grantResults) if (g != PackageManager.PERMISSION_GRANTED) all = false;
