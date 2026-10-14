@@ -26,6 +26,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -124,7 +125,34 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             onValueChange = { appUrl = it },
             label = { Text(stringResource(R.string.field_site_url)) },
             singleLine = true,
+            enabled = result == null,
             modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+        )
+
+        Row(
+            modifier = Modifier.padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Button(
+                onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) }
+            ) { Text(stringResource(R.string.btn_choose_zip)) }
+            result?.let { r ->
+                Text(
+                    stringResource(
+                        if (r.hasIndex) R.string.zip_ok else R.string.zip_no_index,
+                        r.files.size
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.weight(1f).padding(start = 12.dp)
+                )
+                TextButton(onClick = { result = null }) { Text(stringResource(R.string.btn_reset)) }
+            }
+        }
+        Text(
+            stringResource(if (result != null) R.string.mode_zip else R.string.mode_url),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(top = 4.dp)
         )
 
         Row(modifier = Modifier.padding(top = 12.dp)) {
@@ -132,7 +160,13 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                 Text(stringResource(R.string.btn_choose_icon))
             }
             Text(
-                stringResource(if (iconUri != null) R.string.icon_chosen else R.string.icon_from_site),
+                stringResource(
+                    when {
+                        iconUri != null -> R.string.icon_chosen
+                        result != null -> R.string.icon_src_zip_label
+                        else -> R.string.icon_from_site
+                    }
+                ),
                 modifier = Modifier.padding(start = 12.dp)
             )
             if (iconUri != null) {
@@ -174,7 +208,10 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             Button(
                 onClick = {
                     val url = appUrl.trim()
-                    if (!url.startsWith("https://")) {
+                    val zip = result
+                    if (zip != null && !zip.hasIndex) {
+                        buildStatus = context.getString(R.string.err_zip_no_index)
+                    } else if (zip == null && !url.startsWith("https://")) {
                         buildStatus = context.getString(R.string.err_https)
                     } else {
                         buildStatus = context.getString(R.string.status_building)
@@ -182,14 +219,12 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                         scope.launch {
                             buildStatus = try {
                                 val where = withContext(Dispatchers.IO) {
-                                    ApkBuilder.build(
-                                        context,
-                                        appName.trim().ifEmpty { "App" },
-                                        url,
-                                        iconUri,
-                                        screen,
-                                        orientation
-                                    )
+                                    val name = appName.trim().ifEmpty { "App" }
+                                    if (zip != null) {
+                                        ApkBuilder.buildFromZip(context, name, iconUri, screen, orientation)
+                                    } else {
+                                        ApkBuilder.build(context, name, url, iconUri, screen, orientation)
+                                    }
                                 }
                                 built = true
                                 context.getString(R.string.status_saved, where)
@@ -225,11 +260,6 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             Text(it, modifier = Modifier.padding(top = 12.dp))
         }
 
-        Button(
-            onClick = { zipPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")) },
-            modifier = Modifier.padding(top = 16.dp)
-        ) { Text(stringResource(R.string.btn_choose_zip)) }
-
         error?.let {
             Text(
                 stringResource(R.string.err_generic, it),
@@ -238,14 +268,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
             )
         }
         result?.let { r ->
-            Text(
-                stringResource(
-                    if (r.hasIndex) R.string.zip_ok else R.string.zip_no_index,
-                    r.files.size
-                ),
-                modifier = Modifier.padding(vertical = 12.dp)
-            )
-            LazyColumn {
+            LazyColumn(modifier = Modifier.padding(top = 12.dp)) {
                 items(r.files) { Text(it, style = MaterialTheme.typography.bodySmall) }
             }
         }

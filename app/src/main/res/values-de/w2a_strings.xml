@@ -31,4 +31,9 @@
     <string name="zip_no_index">Keine index.html im Archiv-Stamm, %1$d Dateien</string>
     <string name="inst_build_first">Bitte zuerst die APK erstellen</string>
     <string name="inst_allow">Installation aus dieser App erlauben und dann erneut auf „Installieren“ tippen</string>
+    <string name="icon_src_zip">aus ZIP</string>
+    <string name="err_zip_no_index">Im Archiv-Stamm fehlt index.html, Build nicht möglich</string>
+    <string name="mode_url">Modus: URL (die App öffnet die Website online)</string>
+    <string name="mode_zip">Modus: ZIP (die Website ist in der App verpackt, funktioniert offline)</string>
+    <string name="icon_src_zip_label">Icon: aus ZIP</string>
 </resources>

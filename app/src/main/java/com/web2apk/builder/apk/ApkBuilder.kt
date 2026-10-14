@@ -24,12 +24,19 @@ import java.util.zip.ZipOutputStream
 object ApkBuilder {
     private const val TEMPLATE_PACKAGE = "com.web2apk.template"
     private const val TEMPLATE_LABEL = "Web App"
+    private const val SITE_HOST = "appassets.androidplatform.net"
+    private const val MAX_SITE_BYTES = 200L * 1024 * 1024
     private val ICON_ENTRY = Regex("res/.*\\.png")
 
     /** Same URL always gives the same package, so rebuilding updates the app instead of duplicating it. */
-    fun packageFor(url: String): String {
+    fun packageFor(url: String): String = packageForKey(url)
+
+    /** ZIP-mode apps have no URL, so the package comes from the app name: same name updates the same app. */
+    fun packageForZip(appName: String): String = packageForKey("zip:" + appName.trim())
+
+    private fun packageForKey(key: String): String {
         val hash = MessageDigest.getInstance("SHA-1")
-            .digest(url.trim().lowercase().toByteArray())
+            .digest(key.trim().lowercase().toByteArray())
             .take(6)
             .joinToString("") { "%02x".format(it) }
         return "com.web2apk.app.a$hash"
@@ -72,6 +79,65 @@ object ApkBuilder {
             } else null
         }
 
+        return assemble(context, template, appName, pkg, config, icons, iconSource, null)
+    }
+
+    /**
+     * ZIP mode: packs the imported project (filesDir/project) into the APK under assets/site.
+     * The template serves it from https://appassets.androidplatform.net/.
+     */
+    fun buildFromZip(
+        context: Context,
+        appName: String,
+        iconUri: Uri?,
+        screen: String,
+        orientation: String
+    ): String {
+        val site = File(context.filesDir, "project")
+        if (!File(site, "index.html").isFile) throw IOException(context.getString(R.string.err_zip_no_index))
+
+        val template = File(context.cacheDir, "template.apk")
+        context.assets.open("template.apk").use { input ->
+            template.outputStream().use { input.copyTo(it) }
+        }
+
+        val pkg = packageForZip(appName)
+        val config = JSONObject()
+            .put("name", appName)
+            .put("url", "https://$SITE_HOST/index.html")
+            .put("mode", "zip")
+            .put("screen", screen)
+            .put("orientation", orientation)
+            .toString()
+
+        var iconSource = context.getString(R.string.icon_src_default)
+        val icons: IconSet? = if (iconUri != null) {
+            iconSource = context.getString(R.string.icon_src_chosen)
+            IconMaker.makeSet(IconMaker.readUri(context, iconUri))
+        } else {
+            val raw = try { LocalIcon.find(site) } catch (e: Exception) { null }
+            if (raw != null) {
+                try {
+                    IconMaker.makeSet(raw).also { iconSource = context.getString(R.string.icon_src_zip) }
+                } catch (e: Exception) {
+                    null
+                }
+            } else null
+        }
+
+        return assemble(context, template, appName, pkg, config, icons, iconSource, site)
+    }
+
+    private fun assemble(
+        context: Context,
+        template: File,
+        appName: String,
+        pkg: String,
+        config: String,
+        icons: IconSet?,
+        iconSource: String,
+        siteDir: File?
+    ): String {
         val unsigned = File(context.cacheDir, "unsigned.apk")
         repack(
             template,
@@ -85,7 +151,8 @@ object ApkBuilder {
                     )
                 }
             ),
-            icons = icons
+            icons = icons,
+            siteDir = siteDir
         )
 
         val signed = File(context.cacheDir, "signed.apk")
@@ -115,7 +182,8 @@ object ApkBuilder {
         output: File,
         replacements: Map<String, ByteArray>,
         transforms: Map<String, (ByteArray) -> ByteArray>,
-        icons: IconSet?
+        icons: IconSet?,
+        siteDir: File?
     ) {
         val counting = CountingStream(BufferedOutputStream(FileOutputStream(output)))
         var iconReplaced = false
@@ -143,6 +211,17 @@ object ApkBuilder {
             }
             for ((name, data) in replacements) {
                 putEntry(zos, counting, name, data, stored = false)
+            }
+            if (siteDir != null) {
+                val root = siteDir.canonicalFile
+                var total = 0L
+                for (f in root.walkTopDown().filter { it.isFile }.sortedBy { it.path }) {
+                    val rel = f.relativeTo(root).invariantSeparatorsPath
+                    if (rel.startsWith("__MACOSX/") || rel.endsWith(".DS_Store") || rel.startsWith(".git/")) continue
+                    total += f.length()
+                    if (total > MAX_SITE_BYTES) throw IOException("Site is too large (over 200 MB)")
+                    putEntry(zos, counting, "assets/site/$rel", f.readBytes(), stored = false)
+                }
             }
         }
         if (icons != null && !iconReplaced) {

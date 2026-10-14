@@ -31,4 +31,9 @@
     <string name="zip_no_index">No index.html in the archive root, %1$d files</string>
     <string name="inst_build_first">Build the APK first</string>
     <string name="inst_allow">Allow installs from this app, then press Install again</string>
+    <string name="icon_src_zip">from ZIP</string>
+    <string name="err_zip_no_index">The ZIP has no index.html in its root, cannot build</string>
+    <string name="mode_url">Mode: URL (the app opens the site online)</string>
+    <string name="mode_zip">Mode: ZIP (the site is packed into the app, works offline)</string>
+    <string name="icon_src_zip_label">icon: from ZIP</string>
 </resources>

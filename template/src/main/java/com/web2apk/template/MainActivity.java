@@ -8,6 +8,7 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,10 +16,14 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
+import android.webkit.MimeTypeMap;
 import android.webkit.PermissionRequest;
+import android.webkit.ServiceWorkerClient;
+import android.webkit.ServiceWorkerController;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
@@ -26,10 +31,16 @@ import android.widget.FrameLayout;
 
 import org.json.JSONObject;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 public class MainActivity extends Activity {
     private static final int REQ_GEO = 1;
@@ -44,7 +55,11 @@ public class MainActivity extends Activity {
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
                     | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY;
 
+    /** In ZIP mode the site is served from assets/site under this virtual HTTPS origin. */
+    private static final String ZIP_HOST = "appassets.androidplatform.net";
+
     private WebView web;
+    private boolean zipMode = false;
     private String startHost = "";
     private String screenMode = "normal";
     private String orientation = "auto";
@@ -92,6 +107,7 @@ public class MainActivity extends Activity {
             name = c.optString("name", name);
             screenMode = c.optString("screen", "normal");
             orientation = c.optString("orientation", "auto");
+            zipMode = "zip".equals(c.optString("mode", "url"));
         } catch (Exception ignored) {
         }
         setTitle(name);
@@ -116,7 +132,24 @@ public class MainActivity extends Activity {
 
         web.addJavascriptInterface(new Bridge(), "W2A");
 
+        if (zipMode && Build.VERSION.SDK_INT >= 24) {
+            try {
+                ServiceWorkerController.getInstance().setServiceWorkerClient(new ServiceWorkerClient() {
+                    @Override
+                    public WebResourceResponse shouldInterceptRequest(WebResourceRequest request) {
+                        return serveAsset(request);
+                    }
+                });
+            } catch (Throwable ignored) {
+            }
+        }
+
         web.setWebViewClient(new WebViewClient() {
+            @Override
+            public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+                return zipMode ? serveAsset(request) : null;
+            }
+
             @Override
             public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
                 if (!request.isForMainFrame()) return false;
@@ -241,6 +274,151 @@ public class MainActivity extends Activity {
         setContentView(web);
         updateUi();
         web.loadUrl(url);
+    }
+
+    // ---- ZIP mode: serve the packed site from assets/site ----
+
+    private InputStream openSite(String rel) {
+        try {
+            return getAssets().open("site/" + rel, android.content.res.AssetManager.ACCESS_STREAMING);
+        } catch (IOException e) {
+            return null;
+        }
+    }
+
+    private static String mimeFor(String name) {
+        int dot = name.lastIndexOf('.');
+        String ext = dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
+        switch (ext) {
+            case "html": case "htm": return "text/html";
+            case "js": case "mjs": return "text/javascript";
+            case "css": return "text/css";
+            case "json": case "map": return "application/json";
+            case "webmanifest": return "application/manifest+json";
+            case "svg": return "image/svg+xml";
+            case "wasm": return "application/wasm";
+            case "txt": return "text/plain";
+            case "xml": return "application/xml";
+            case "ico": return "image/x-icon";
+            case "woff": return "font/woff";
+            case "woff2": return "font/woff2";
+            case "ttf": return "font/ttf";
+            case "otf": return "font/otf";
+            default:
+                String m = MimeTypeMap.getSingleton().getMimeTypeFromExtension(ext);
+                return m != null ? m : "application/octet-stream";
+        }
+    }
+
+    private static boolean isText(String mime) {
+        return mime.startsWith("text/") || mime.contains("json") || mime.contains("xml")
+                || mime.contains("javascript");
+    }
+
+    private static class LimitedStream extends FilterInputStream {
+        private long left;
+
+        LimitedStream(InputStream in, long left) {
+            super(in);
+            this.left = left;
+        }
+
+        @Override
+        public int read() throws IOException {
+            if (left <= 0) return -1;
+            int b = super.read();
+            if (b >= 0) left--;
+            return b;
+        }
+
+        @Override
+        public int read(byte[] buf, int off, int len) throws IOException {
+            if (left <= 0) return -1;
+            int n = super.read(buf, off, (int) Math.min(len, left));
+            if (n > 0) left -= n;
+            return n;
+        }
+    }
+
+    private static WebResourceResponse simple(int code, String reason) {
+        return new WebResourceResponse("text/plain", "utf-8", code, reason,
+                new HashMap<String, String>(), new ByteArrayInputStream(new byte[0]));
+    }
+
+    /** Returns the packed file for requests to the virtual origin, or null for any other host. */
+    private WebResourceResponse serveAsset(WebResourceRequest request) {
+        Uri u = request.getUrl();
+        if (!"https".equals(u.getScheme()) || !ZIP_HOST.equals(u.getHost())) return null;
+        String path = u.getPath();
+        if (path == null || path.isEmpty()) path = "/";
+        if (path.endsWith("/")) path += "index.html";
+        String rel = path.substring(1);
+        if (rel.contains("..")) return simple(404, "Not Found");
+
+        InputStream in = openSite(rel);
+        boolean noExt = !rel.substring(rel.lastIndexOf('/') + 1).contains(".");
+        if (in == null && noExt) {
+            // /folder -> /folder/index.html, then single-page-app fallback for page navigations
+            in = openSite(rel + "/index.html");
+            if (in != null) {
+                rel = rel + "/index.html";
+            } else if (request.isForMainFrame()) {
+                in = openSite("index.html");
+                rel = "index.html";
+            }
+        }
+        if (in == null) return simple(404, "Not Found");
+
+        String mime = mimeFor(rel);
+        String enc = isText(mime) ? "utf-8" : null;
+        Map<String, String> headers = new HashMap<>();
+        headers.put("Accept-Ranges", "bytes");
+
+        String range = null;
+        Map<String, String> req = request.getRequestHeaders();
+        if (req != null) {
+            for (Map.Entry<String, String> e : req.entrySet()) {
+                if ("range".equalsIgnoreCase(e.getKey())) range = e.getValue();
+            }
+        }
+        if (range != null && range.startsWith("bytes=")) {
+            try {
+                long total = in.available();
+                String[] parts = range.substring(6).split(",")[0].trim().split("-", -1);
+                long start;
+                long end;
+                if (parts[0].isEmpty()) {
+                    long suffix = Long.parseLong(parts[1]);
+                    start = Math.max(0, total - suffix);
+                    end = total - 1;
+                } else {
+                    start = Long.parseLong(parts[0]);
+                    end = parts.length > 1 && !parts[1].isEmpty() ? Long.parseLong(parts[1]) : total - 1;
+                }
+                if (end >= total) end = total - 1;
+                if (start >= total || start > end) {
+                    in.close();
+                    return simple(416, "Range Not Satisfiable");
+                }
+                long skipped = 0;
+                while (skipped < start) {
+                    long n = in.skip(start - skipped);
+                    if (n <= 0) break;
+                    skipped += n;
+                }
+                long len = end - start + 1;
+                headers.put("Content-Range", "bytes " + start + "-" + end + "/" + total);
+                headers.put("Content-Length", String.valueOf(len));
+                return new WebResourceResponse(mime, enc, 206, "Partial Content", headers,
+                        new LimitedStream(in, len));
+            } catch (Exception ignored) {
+                // fall through to a plain full response
+                try { in.close(); } catch (IOException ignored2) { }
+                in = openSite(rel);
+                if (in == null) return simple(404, "Not Found");
+            }
+        }
+        return new WebResourceResponse(mime, enc, 200, "OK", headers, in);
     }
 
     private void applyOrientation() {

@@ -31,4 +31,9 @@
     <string name="zip_no_index">У корені архіву немає index.html, файлів: %1$d</string>
     <string name="inst_build_first">Спочатку зберіть APK</string>
     <string name="inst_allow">Дозвольте встановлення з цього застосунку й натисніть «Встановити» ще раз</string>
+    <string name="icon_src_zip">з ZIP</string>
+    <string name="err_zip_no_index">У корені архіву немає index.html, збірка неможлива</string>
+    <string name="mode_url">Режим: URL (застосунок відкриває сайт онлайн)</string>
+    <string name="mode_zip">Режим: ZIP (сайт запакований у застосунок, працює офлайн)</string>
+    <string name="icon_src_zip_label">іконка: з ZIP</string>
 </resources>
