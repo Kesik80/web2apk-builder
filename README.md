@@ -32,7 +32,7 @@ What ZIP mode cannot do: server code. Serverless functions (`/api/...`), databas
 
 ### Signing key backup
 
-Since v0.14 the signing key is a normal RSA-2048 key kept in the app's private storage (`signing.p12`), excluded from cloud backups. **Back up key** writes `web2apk_key_backup.zip` to Downloads, protected by a password of your choice (at least 6 characters). **Restore key** replaces the current key with the one from such a file, so apps can be updated after reinstalling the Builder or on a new phone.
+Since v0.14 the signing key is a normal RSA-2048 key kept in the app's private storage (`signing.p12`), excluded from cloud backups. **Back up key** asks for a password (at least 6 characters) and then opens the system file picker, where you choose the destination: Downloads, Google Drive, MEGA or any other storage app installed on the phone (no accounts or API keys are handled by the Builder). The file is `web2apk_key_backup.zip`. **Restore key** opens the same picker (cloud apps included) and replaces the current key with the one from such a file, so apps can be updated after reinstalling the Builder or on a new phone.
 
 Migration: the first build after updating from an older version creates the new key and signs a rotation lineage with the old AndroidKeyStore key, so apps built earlier still update in place (Android 9+). The lineage is part of the backup. If the lineage cannot be created, the old key keeps being used and backup is unavailable.
 
@@ -124,7 +124,7 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.11 | Sites treat built apps as installed (no install banners) | done |
 | v0.12 | ZIP mode (offline sites served from the APK) | done |
 | v0.13 | Background location bridge for sites (foreground service, works with the screen off) | done |
-| v0.14 | Signing key backup / restore (password-protected file in Downloads) | done |
+| v0.14 | Signing key backup / restore (password-protected file, saved anywhere via the system picker) | done |
 | v1.0 | Release | planned |
 
 ## Known limitations

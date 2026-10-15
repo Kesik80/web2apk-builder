@@ -88,6 +88,7 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var keyDialog by remember { mutableStateOf<String?>(null) }
     var keyPassword by remember { mutableStateOf("") }
     var restoreUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingBackup by remember { mutableStateOf<ByteArray?>(null) }
     var keyStatus by remember { mutableStateOf<String?>(null) }
 
     val zipPicker = rememberLauncherForActivityResult(
@@ -122,6 +123,28 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         }
     }
 
+    // The system file picker also offers Google Drive, MEGA and other storage apps that are installed.
+    val keySaver = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/zip")
+    ) { uri ->
+        val data = pendingBackup
+        pendingBackup = null
+        if (uri != null && data != null) {
+            scope.launch {
+                keyStatus = try {
+                    withContext(Dispatchers.IO) {
+                        val out = context.contentResolver.openOutputStream(uri)
+                            ?: throw java.io.IOException("Cannot write file")
+                        out.use { it.write(data) }
+                    }
+                    context.getString(R.string.key_backup_done, uri.lastPathSegment ?: "")
+                } catch (e: Throwable) {
+                    context.getString(R.string.key_error, e.message ?: e.javaClass.simpleName)
+                }
+            }
+        }
+    }
+
     keyDialog?.let { mode ->
         val backup = mode == "backup"
         AlertDialog(
@@ -151,17 +174,16 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
                         keyDialog = null
                         keyPassword = ""
                         scope.launch {
-                            keyStatus = try {
-                                withContext(Dispatchers.IO) {
-                                    if (backup) {
-                                        context.getString(R.string.key_backup_done, SigningKeys.exportBackup(context, pw))
-                                    } else {
-                                        SigningKeys.restoreBackup(context, uri!!, pw)
-                                        context.getString(R.string.key_restore_done)
-                                    }
+                            try {
+                                if (backup) {
+                                    pendingBackup = withContext(Dispatchers.IO) { SigningKeys.buildBackup(context, pw) }
+                                    keySaver.launch(SigningKeys.BACKUP_FILE_NAME)
+                                } else {
+                                    withContext(Dispatchers.IO) { SigningKeys.restoreBackup(context, uri!!, pw) }
+                                    keyStatus = context.getString(R.string.key_restore_done)
                                 }
                             } catch (e: Throwable) {
-                                context.getString(R.string.key_error, e.message ?: e.javaClass.simpleName)
+                                keyStatus = context.getString(R.string.key_error, e.message ?: e.javaClass.simpleName)
                             }
                         }
                     }

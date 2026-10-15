@@ -40,7 +40,7 @@
     <string name="btn_key_restore">Restore key</string>
     <string name="key_backup_title">Back up signing key</string>
     <string name="key_restore_title">Restore signing key</string>
-    <string name="key_backup_hint">Saves your signing key to Downloads, protected by a password (at least 6 characters). With this file you can update your apps after reinstalling the Builder or on a new phone. Keep it safe.</string>
+    <string name="key_backup_hint">Protects your signing key with a password (at least 6 characters). Next you pick where to save it: Downloads, Google Drive, MEGA or any other storage app. With this file you can update your apps after reinstalling the Builder or on a new phone. Keep it safe.</string>
     <string name="key_restore_hint">Replaces the current signing key with the one from the backup file. Enter the password you set when backing up.</string>
     <string name="key_password">Password</string>
     <string name="btn_ok">OK</string>

@@ -40,7 +40,7 @@
     <string name="btn_key_restore">Schlüssel wiederherstellen</string>
     <string name="key_backup_title">Signaturschlüssel sichern</string>
     <string name="key_restore_title">Signaturschlüssel wiederherstellen</string>
-    <string name="key_backup_hint">Speichert deinen Signaturschlüssel passwortgeschützt (mindestens 6 Zeichen) in Downloads. Mit dieser Datei kannst du deine Apps nach einer Neuinstallation des Builders oder auf einem neuen Handy weiter aktualisieren. Bewahre sie sicher auf.</string>
+    <string name="key_backup_hint">Schützt deinen Signaturschlüssel mit einem Passwort (mindestens 6 Zeichen). Danach wählst du den Speicherort: Downloads, Google Drive, MEGA oder eine andere Speicher-App. Mit dieser Datei kannst du deine Apps nach einer Neuinstallation des Builders oder auf einem neuen Handy weiter aktualisieren. Bewahre sie sicher auf.</string>
     <string name="key_restore_hint">Ersetzt den aktuellen Signaturschlüssel durch den aus der Sicherungsdatei. Gib das Passwort ein, das du beim Sichern festgelegt hast.</string>
     <string name="key_password">Passwort</string>
     <string name="btn_ok">OK</string>

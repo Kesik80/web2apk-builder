@@ -1,11 +1,7 @@
 package com.web2apk.builder.apk
 
-import android.content.ContentValues
 import android.content.Context
 import android.net.Uri
-import android.os.Build
-import android.os.Environment
-import android.provider.MediaStore
 import com.android.apksig.SigningCertificateLineage
 import com.web2apk.builder.R
 import java.io.ByteArrayInputStream
@@ -115,8 +111,11 @@ object SigningKeys {
         return Signer(kp.private, cert, lineage)
     }
 
-    /** Saves a password-protected backup (key + lineage) to Downloads. Returns where it went. */
-    fun exportBackup(context: Context, password: CharArray): String {
+    /** Suggested file name for the backup. */
+    const val BACKUP_FILE_NAME = BACKUP_NAME
+
+    /** Builds a password-protected backup (key + lineage) as zip bytes; the caller decides where to save it. */
+    fun buildBackup(context: Context, password: CharArray): ByteArray {
         val signer = load(context)
         if (!p12File(context).isFile) throw IOException(context.getString(R.string.key_legacy))
         val zipBytes = ByteArrayOutputStream()
@@ -131,7 +130,7 @@ object SigningKeys {
                 z.closeEntry()
             }
         }
-        return saveToDownloads(context, zipBytes.toByteArray())
+        return zipBytes.toByteArray()
     }
 
     /** Replaces the current signing key with the one from a backup file. */
@@ -174,26 +173,5 @@ object SigningKeys {
             lf.delete()
         }
         p12File(context).writeBytes(writeP12(k, c, INTERNAL_PW))
-    }
-
-    private fun saveToDownloads(context: Context, data: ByteArray): String {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
-            val dir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
-                ?: throw IOException("No external storage")
-            val dst = File(dir, BACKUP_NAME)
-            dst.writeBytes(data)
-            return dst.absolutePath
-        }
-        val values = ContentValues().apply {
-            put(MediaStore.Downloads.DISPLAY_NAME, BACKUP_NAME)
-            put(MediaStore.Downloads.MIME_TYPE, "application/zip")
-            put(MediaStore.Downloads.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS)
-        }
-        val resolver = context.contentResolver
-        val uri = resolver.insert(MediaStore.Downloads.EXTERNAL_CONTENT_URI, values)
-            ?: throw IOException("Cannot create file in Downloads")
-        val out = resolver.openOutputStream(uri) ?: throw IOException("Cannot write file")
-        out.use { it.write(data) }
-        return "Downloads/$BACKUP_NAME"
     }
 }
