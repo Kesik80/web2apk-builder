@@ -8,7 +8,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 
 ## Status
 
-**v0.13**: URL mode and ZIP mode work end to end; built apps can keep sending GPS with the screen off (background location bridge). The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
+**v0.14**: URL mode and ZIP mode work end to end; the signing key can be backed up and restored; built apps can keep sending GPS with the screen off (background location bridge). The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
@@ -17,7 +17,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
    - writes the site name, URL, screen mode and rotation into `assets/config.json`;
    - edits the compiled binary `AndroidManifest.xml` (package name and app label);
    - replaces the launcher icon (adaptive icon: the picture is cropped to a square, its edge color becomes the background).
-3. The APK is signed on the device (apksig, AndroidKeyStore RSA-2048 key, v2 + v3 schemes).
+3. The APK is signed on the device (apksig, RSA-2048 key stored in the app, v2 + v3 schemes).
 4. The signed APK is saved to Downloads and can be installed right from the app.
 
 Each URL gets its own stable package name (`com.web2apk.app.a<hash of URL>`), so rebuilding the same URL updates the app, while a different URL installs as a separate app.
@@ -29,6 +29,12 @@ Choose a ZIP whose root contains `index.html` (a single top-level folder is unwr
 The icon is searched inside the ZIP the same way as for a URL (`manifest.json`, `apple-touch-icon`, `<link rel="icon">`, common file names).
 
 What ZIP mode cannot do: server code. Serverless functions (`/api/...`), databases and secret keys stay on the server, so sites that depend on them (for example Fahrzeit) should use URL mode. Inside the app, data such as `localStorage` belongs to the virtual origin and is not shared with the real site or the browser.
+
+### Signing key backup
+
+Since v0.14 the signing key is a normal RSA-2048 key kept in the app's private storage (`signing.p12`), excluded from cloud backups. **Back up key** writes `web2apk_key_backup.zip` to Downloads, protected by a password of your choice (at least 6 characters). **Restore key** replaces the current key with the one from such a file, so apps can be updated after reinstalling the Builder or on a new phone.
+
+Migration: the first build after updating from an older version creates the new key and signs a rotation lineage with the old AndroidKeyStore key, so apps built earlier still update in place (Android 9+). The lineage is part of the backup. If the lineage cannot be created, the old key keeps being used and backup is unavailable.
 
 ### Icon
 
@@ -118,12 +124,13 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.11 | Sites treat built apps as installed (no install banners) | done |
 | v0.12 | ZIP mode (offline sites served from the APK) | done |
 | v0.13 | Background location bridge for sites (foreground service, works with the screen off) | done |
-| v0.14 | Signing key backup / restore | planned |
+| v0.14 | Signing key backup / restore (password-protected file in Downloads) | done |
 | v1.0 | Release | planned |
 
 ## Known limitations
 
-- The signing key lives in AndroidKeyStore. If the Builder is uninstalled or the phone is changed, apps built earlier can no longer be updated in place (key backup is planned).
+- If the Builder is uninstalled or the phone is changed without a key backup, apps built earlier can no longer be updated in place. Back up the key after the first build.
+- Apps signed with the pre-0.14 key are updated through a key-rotation lineage, which needs Android 9 or newer.
 - OAuth and external login flows are not handled yet.
 - ZIP mode has no server side: `/api/...` calls and secrets must stay on a real server (use URL mode for such sites).
 - On Android 8–9 the APK is saved to the app's own Downloads folder instead of the public one.

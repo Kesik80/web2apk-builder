@@ -36,4 +36,19 @@
     <string name="mode_url">Режим: URL (застосунок відкриває сайт онлайн)</string>
     <string name="mode_zip">Режим: ZIP (сайт запакований у застосунок, працює офлайн)</string>
     <string name="icon_src_zip_label">іконка: з ZIP</string>
+    <string name="btn_key_backup">Зберегти ключ</string>
+    <string name="btn_key_restore">Відновити ключ</string>
+    <string name="key_backup_title">Резервна копія ключа підпису</string>
+    <string name="key_restore_title">Відновлення ключа підпису</string>
+    <string name="key_backup_hint">Зберігає ключ підпису в Завантаження під паролем (не коротше 6 символів). З цим файлом застосунки можна оновлювати після перевстановлення Builder або на новому телефоні. Зберігайте його надійно.</string>
+    <string name="key_restore_hint">Замінює поточний ключ підпису ключем із резервної копії. Введіть пароль, заданий під час збереження.</string>
+    <string name="key_password">Пароль</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_cancel">Скасувати</string>
+    <string name="key_backup_done">Ключ збережено: %1$s</string>
+    <string name="key_restore_done">Ключ відновлено. Перезберіть застосунки, щоб підписати їх цим ключем.</string>
+    <string name="key_error">Помилка ключа: %1$s</string>
+    <string name="key_legacy">Досі використовується старий неекспортований ключ, резервна копія неможлива</string>
+    <string name="key_bad_file">Це не файл резервної копії ключа</string>
+    <string name="key_wrong_password">Неправильний пароль</string>
 </resources>

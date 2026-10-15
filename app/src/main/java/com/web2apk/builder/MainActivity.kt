@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -30,9 +31,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.web2apk.builder.apk.ApkBuilder
 import com.web2apk.builder.apk.Installer
+import com.web2apk.builder.apk.SigningKeys
 import com.web2apk.builder.importer.ImportResult
 import com.web2apk.builder.importer.ZipImporter
 import com.web2apk.builder.ui.theme.Web2APKBuilderTheme
@@ -82,6 +85,10 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
     var iconUri by remember { mutableStateOf<Uri?>(null) }
     var screen by remember { mutableStateOf("normal") }
     var orientation by remember { mutableStateOf("auto") }
+    var keyDialog by remember { mutableStateOf<String?>(null) }
+    var keyPassword by remember { mutableStateOf("") }
+    var restoreUri by remember { mutableStateOf<Uri?>(null) }
+    var keyStatus by remember { mutableStateOf<String?>(null) }
 
     val zipPicker = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -103,6 +110,67 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) iconUri = uri
+    }
+
+    val keyPicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) {
+            restoreUri = uri
+            keyPassword = ""
+            keyDialog = "restore"
+        }
+    }
+
+    keyDialog?.let { mode ->
+        val backup = mode == "backup"
+        AlertDialog(
+            onDismissRequest = { keyDialog = null },
+            title = {
+                Text(stringResource(if (backup) R.string.key_backup_title else R.string.key_restore_title))
+            },
+            text = {
+                Column {
+                    Text(stringResource(if (backup) R.string.key_backup_hint else R.string.key_restore_hint))
+                    OutlinedTextField(
+                        value = keyPassword,
+                        onValueChange = { keyPassword = it },
+                        label = { Text(stringResource(R.string.key_password)) },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = keyPassword.length >= if (backup) 6 else 1,
+                    onClick = {
+                        val pw = keyPassword.toCharArray()
+                        val uri = restoreUri
+                        keyDialog = null
+                        keyPassword = ""
+                        scope.launch {
+                            keyStatus = try {
+                                withContext(Dispatchers.IO) {
+                                    if (backup) {
+                                        context.getString(R.string.key_backup_done, SigningKeys.exportBackup(context, pw))
+                                    } else {
+                                        SigningKeys.restoreBackup(context, uri!!, pw)
+                                        context.getString(R.string.key_restore_done)
+                                    }
+                                }
+                            } catch (e: Throwable) {
+                                context.getString(R.string.key_error, e.message ?: e.javaClass.simpleName)
+                            }
+                        }
+                    }
+                ) { Text(stringResource(R.string.btn_ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { keyDialog = null }) { Text(stringResource(R.string.btn_cancel)) }
+            }
+        )
     }
 
     Column(modifier = modifier.fillMaxSize().padding(24.dp)) {
@@ -259,6 +327,18 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         buildStatus?.let {
             Text(it, modifier = Modifier.padding(top = 12.dp))
         }
+
+        Row(modifier = Modifier.padding(top = 12.dp)) {
+            TextButton(onClick = { keyPassword = ""; keyDialog = "backup" }) {
+                Text(stringResource(R.string.btn_key_backup))
+            }
+            TextButton(
+                onClick = {
+                    keyPicker.launch(arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream"))
+                }
+            ) { Text(stringResource(R.string.btn_key_restore)) }
+        }
+        keyStatus?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
 
         error?.let {
             Text(

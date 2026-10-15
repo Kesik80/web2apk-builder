@@ -36,4 +36,19 @@
     <string name="mode_url">Режим: URL (приложение открывает сайт онлайн)</string>
     <string name="mode_zip">Режим: ZIP (сайт упакован в приложение, работает офлайн)</string>
     <string name="icon_src_zip_label">иконка: из ZIP</string>
+    <string name="btn_key_backup">Сохранить ключ</string>
+    <string name="btn_key_restore">Восстановить ключ</string>
+    <string name="key_backup_title">Резервная копия ключа подписи</string>
+    <string name="key_restore_title">Восстановление ключа подписи</string>
+    <string name="key_backup_hint">Сохраняет ключ подписи в Загрузки под паролем (не короче 6 символов). С этим файлом приложения можно обновлять после переустановки Builder или на новом телефоне. Храните его в надёжном месте.</string>
+    <string name="key_restore_hint">Заменяет текущий ключ подписи ключом из резервной копии. Введите пароль, заданный при сохранении.</string>
+    <string name="key_password">Пароль</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_cancel">Отмена</string>
+    <string name="key_backup_done">Ключ сохранён: %1$s</string>
+    <string name="key_restore_done">Ключ восстановлен. Пересоберите приложения, чтобы подписать их этим ключом.</string>
+    <string name="key_error">Ошибка ключа: %1$s</string>
+    <string name="key_legacy">Всё ещё используется старый неэкспортируемый ключ, резервная копия невозможна</string>
+    <string name="key_bad_file">Это не файл резервной копии ключа</string>
+    <string name="key_wrong_password">Неверный пароль</string>
 </resources>

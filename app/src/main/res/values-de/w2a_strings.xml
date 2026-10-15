@@ -36,4 +36,19 @@
     <string name="mode_url">Modus: URL (die App öffnet die Website online)</string>
     <string name="mode_zip">Modus: ZIP (die Website ist in der App verpackt, funktioniert offline)</string>
     <string name="icon_src_zip_label">Icon: aus ZIP</string>
+    <string name="btn_key_backup">Schlüssel sichern</string>
+    <string name="btn_key_restore">Schlüssel wiederherstellen</string>
+    <string name="key_backup_title">Signaturschlüssel sichern</string>
+    <string name="key_restore_title">Signaturschlüssel wiederherstellen</string>
+    <string name="key_backup_hint">Speichert deinen Signaturschlüssel passwortgeschützt (mindestens 6 Zeichen) in Downloads. Mit dieser Datei kannst du deine Apps nach einer Neuinstallation des Builders oder auf einem neuen Handy weiter aktualisieren. Bewahre sie sicher auf.</string>
+    <string name="key_restore_hint">Ersetzt den aktuellen Signaturschlüssel durch den aus der Sicherungsdatei. Gib das Passwort ein, das du beim Sichern festgelegt hast.</string>
+    <string name="key_password">Passwort</string>
+    <string name="btn_ok">OK</string>
+    <string name="btn_cancel">Abbrechen</string>
+    <string name="key_backup_done">Schlüssel gespeichert: %1$s</string>
+    <string name="key_restore_done">Schlüssel wiederhergestellt. Baue deine Apps neu, um sie damit zu signieren.</string>
+    <string name="key_error">Schlüsselfehler: %1$s</string>
+    <string name="key_legacy">Der alte, nicht exportierbare Schlüssel ist noch aktiv, Sicherung nicht möglich</string>
+    <string name="key_bad_file">Das ist keine Schlüssel-Sicherungsdatei</string>
+    <string name="key_wrong_password">Falsches Passwort</string>
 </resources>

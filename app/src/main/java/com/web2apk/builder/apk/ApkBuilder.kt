@@ -157,7 +157,7 @@ object ApkBuilder {
 
         val signed = File(context.cacheDir, "signed.apk")
         if (signed.exists()) signed.delete()
-        ApkSign.sign(unsigned, signed)
+        ApkSign.sign(context, unsigned, signed)
 
         val slug = appName.lowercase().replace(Regex("[^a-z0-9]+"), "_").trim('_').ifEmpty { "app" }
         val where = saveToDownloads(context, signed, "$slug.apk")
