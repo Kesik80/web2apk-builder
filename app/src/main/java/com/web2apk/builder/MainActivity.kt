@@ -132,12 +132,15 @@ fun HomeScreen(version: String, modifier: Modifier = Modifier) {
         if (uri != null && data != null) {
             scope.launch {
                 keyStatus = try {
-                    withContext(Dispatchers.IO) {
+                    val saved = withContext(Dispatchers.IO) {
                         val out = context.contentResolver.openOutputStream(uri)
                             ?: throw java.io.IOException("Cannot write file")
                         out.use { it.write(data) }
+                        context.contentResolver.query(
+                            uri, arrayOf(android.provider.OpenableColumns.DISPLAY_NAME), null, null, null
+                        )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
                     }
-                    context.getString(R.string.key_backup_done, uri.lastPathSegment ?: "")
+                    context.getString(R.string.key_backup_done, saved ?: uri.lastPathSegment ?: "")
                 } catch (e: Throwable) {
                     context.getString(R.string.key_error, e.message ?: e.javaClass.simpleName)
                 }

@@ -28,7 +28,9 @@ object SigningKeys {
     class Signer(
         val key: PrivateKey,
         val cert: X509Certificate,
-        val lineage: SigningCertificateLineage?
+        val lineage: SigningCertificateLineage?,
+        /** The original (pre-rotation) key; apksig needs it as the first signer when a lineage is used. */
+        val oldest: Pair<PrivateKey, X509Certificate>? = null
     )
 
     private const val LEGACY_ALIAS = "web2apk_signing_key"
@@ -80,7 +82,7 @@ object SigningKeys {
             val (k, c) = readP12(pf.readBytes(), INTERNAL_PW)
             val lf = lineageFile(context)
             val lineage = if (lf.isFile) SigningCertificateLineage.readFromFile(lf) else null
-            return Signer(k, c, lineage)
+            return Signer(k, c, lineage, if (lineage != null) legacyKey() else null)
         }
 
         val legacy = legacyKey()
@@ -108,7 +110,7 @@ object SigningKeys {
             if (legacy != null) return Signer(legacy.first, legacy.second, null)
             throw e
         }
-        return Signer(kp.private, cert, lineage)
+        return Signer(kp.private, cert, lineage, legacy)
     }
 
     /** Suggested file name for the backup. */

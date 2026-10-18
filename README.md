@@ -34,7 +34,7 @@ What ZIP mode cannot do: server code. Serverless functions (`/api/...`), databas
 
 Since v0.14 the signing key is a normal RSA-2048 key kept in the app's private storage (`signing.p12`), excluded from cloud backups. **Back up key** asks for a password (at least 6 characters) and then opens the system file picker, where you choose the destination: Downloads, Google Drive, MEGA or any other storage app installed on the phone (no accounts or API keys are handled by the Builder). The file is `web2apk_key_backup.zip`. **Restore key** opens the same picker (cloud apps included) and replaces the current key with the one from such a file, so apps can be updated after reinstalling the Builder or on a new phone.
 
-Migration: the first build after updating from an older version creates the new key and signs a rotation lineage with the old AndroidKeyStore key, so apps built earlier still update in place (Android 9+). The lineage is part of the backup. If the lineage cannot be created, the old key keeps being used and backup is unavailable.
+Migration: the first build after updating from an older version creates the new key and signs a rotation lineage with the old AndroidKeyStore key, so apps built earlier still update in place (Android 9+). The lineage is part of the backup. While the old key still exists on the phone, it signs together with the new one (apksig requires the oldest signer first); on a new phone or after reinstalling the Builder only the new key is used, which is enough for fresh installs and for apps already updated to the new key. If the lineage cannot be created, the old key keeps being used and backup is unavailable.
 
 ### Icon
 
