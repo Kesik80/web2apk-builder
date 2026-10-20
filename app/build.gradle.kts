@@ -36,6 +36,9 @@ android {
     }
 }
 
+// APK file name: web2apk_builder_v<versionName>-debug.apk (for example web2apk_builder_v0.14.1-debug.apk)
+base.archivesName.set("web2apk_builder_v${android.defaultConfig.versionName}")
+
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
