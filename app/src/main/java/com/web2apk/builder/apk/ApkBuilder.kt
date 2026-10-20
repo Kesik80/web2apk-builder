@@ -147,7 +147,9 @@ object ApkBuilder {
                 "AndroidManifest.xml" to { raw: ByteArray ->
                     AxmlEditor.replaceStrings(
                         raw,
-                        mapOf(TEMPLATE_PACKAGE to pkg, TEMPLATE_LABEL to appName)
+                        mapOf(TEMPLATE_PACKAGE to pkg, TEMPLATE_LABEL to appName),
+                        prefixFrom = TEMPLATE_PACKAGE,
+                        prefixTo = pkg
                     )
                 }
             ),

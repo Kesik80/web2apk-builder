@@ -7,7 +7,18 @@ import java.nio.ByteOrder
 /** Minimal editor for a compiled binary AndroidManifest.xml: replaces whole strings in its string pool. */
 object AxmlEditor {
 
-    fun replaceStrings(data: ByteArray, replacements: Map<String, String>): ByteArray {
+    /**
+     * Replaces whole strings found in [replacements]. With [prefixFrom]/[prefixTo], any other string that
+     * starts with "<prefixFrom>." is rewritten to "<prefixTo>.", except class names (the last part is
+     * CamelCase), which must stay as they are. This catches names that libraries add to the merged
+     * manifest, such as permission names and provider authorities built from the application id.
+     */
+    fun replaceStrings(
+        data: ByteArray,
+        replacements: Map<String, String>,
+        prefixFrom: String? = null,
+        prefixTo: String? = null
+    ): ByteArray {
         val buf = ByteBuffer.wrap(data).order(ByteOrder.LITTLE_ENDIAN)
         require(buf.getShort(0).toInt() == 0x0003) { "Not a binary XML file" }
         val pos = buf.getShort(2).toInt() and 0xFFFF
@@ -31,7 +42,7 @@ object AxmlEditor {
         val offsets = IntArray(stringCount)
         for (i in 0 until stringCount) {
             offsets[i] = body.size()
-            writeString(body, replacements[strings[i]] ?: strings[i], utf8)
+            writeString(body, rewrite(strings[i], replacements, prefixFrom, prefixTo), utf8)
         }
         while (body.size() % 4 != 0) body.write(0)
 
@@ -53,6 +64,17 @@ object AxmlEditor {
         out.put(data, pos + poolSize, rest)
         out.putInt(4, out.capacity())
         return out.array()
+    }
+
+    private val CLASS_NAME = Regex("[A-Z][A-Za-z0-9]*")
+
+    private fun rewrite(s: String, map: Map<String, String>, from: String?, to: String?): String {
+        map[s]?.let { return it }
+        if (from != null && to != null && s.startsWith("$from.")) {
+            val tail = s.substring(from.length + 1)
+            if (!CLASS_NAME.matches(tail.substringAfterLast('.'))) return to + "." + tail
+        }
+        return s
     }
 
     private fun readString(d: ByteArray, start: Int, utf8: Boolean): String {

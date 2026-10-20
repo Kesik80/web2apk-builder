@@ -32,6 +32,9 @@ import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
 
+import androidx.webkit.WebViewCompat;
+import androidx.webkit.WebViewFeature;
+
 import org.json.JSONObject;
 
 import java.io.ByteArrayInputStream;
@@ -40,6 +43,7 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -364,6 +368,23 @@ public class MainActivity extends Activity {
 
         web.setDownloadListener((downloadUrl, userAgent, contentDisposition, mimeType, contentLength) ->
                 openExternal(Uri.parse(downloadUrl)));
+
+        // Run early.js before any script of the page (sites that check "installed?" at load time
+        // would otherwise see a plain browser). The later injections stay as a fallback; the script
+        // guards itself against running twice.
+        if (!earlyScript.isEmpty()
+                && WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            String b = bare(startHost);
+            if (!b.isEmpty()) {
+                for (String rule : new String[]{"https://" + b, "https://*." + b}) {
+                    try {
+                        WebViewCompat.addDocumentStartJavaScript(web, earlyScript,
+                                Collections.singleton(rule));
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+        }
 
         setContentView(web);
         updateUi();

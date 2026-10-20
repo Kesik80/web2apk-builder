@@ -12,8 +12,8 @@ android {
         applicationId = "com.web2apk.template"
         minSdk = 26
         targetSdk = 34
-        versionCode = 8
-        versionName = "1.7"
+        versionCode = 9
+        versionName = "1.8"
     }
 
     buildTypes {
@@ -25,4 +25,9 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+}
+
+dependencies {
+    // Document-start scripts: early.js must run before the page's own scripts.
+    implementation("androidx.webkit:webkit:1.14.0")
 }
