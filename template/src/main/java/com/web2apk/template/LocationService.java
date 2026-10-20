@@ -270,6 +270,8 @@ public class LocationService extends Service implements LocationListener {
             try { lm.removeUpdates(this); } catch (Exception ignored) { }
         }
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
+        // A position still waiting to be sent must not go out after tracking has stopped
+        latest.set(null);
         net.shutdown();
         super.onDestroy();
     }
