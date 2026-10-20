@@ -8,7 +8,7 @@ Android app that turns a website (URL) into an installable APK, entirely on the 
 
 ## Status
 
-**v0.15**: URL mode and ZIP mode work end to end; the signing key can be backed up and restored; built apps can keep sending GPS with the screen off (background location bridge). The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
+**v0.16**: URL mode and ZIP mode work end to end; the signing key can be backed up and restored; built apps can keep sending GPS with the screen off (background location bridge). The Builder UI follows the phone language (English, Russian, Ukrainian, German). Enter a name and URL (or choose a ZIP with the site), optionally pick an icon (otherwise it is taken from the site), choose the screen mode and rotation, tap **Build APK**, then **Install**.
 
 ## How it works
 
@@ -53,6 +53,7 @@ The site icon is looked up in this order: `manifest.json` icons, `apple-touch-ic
 - Per-app screen mode: normal bars, no status bar, or fullscreen
 - Per-app rotation: auto, portrait only, or landscape only
 - Fullscreen video support
+- Pull down at the top of a page to refresh it (not on maps, canvases, iframes or scrolled inner lists, which keep their own gestures)
 - Background location for the site (see below)
 - ZIP mode: the site is packed into the APK and works offline (service workers are served from the package too)
 - Sites see the app as an installed PWA (display-mode: standalone), so their own "install app" banners hide; the user agent ends with `Web2APK`. The script runs at document start (before the page's own scripts) through `androidx.webkit` document-start scripts, with the later injection as a fallback
@@ -126,6 +127,7 @@ Copy `template/build/outputs/apk/release/template-release-unsigned.apk` to `app/
 | v0.13 | Background location bridge for sites (foreground service, works with the screen off) | done |
 | v0.14 | Signing key backup / restore (password-protected file, saved anywhere via the system picker) | done |
 | v0.15 | Install-detection script runs before the page's scripts (template 1.8, `androidx.webkit`); the manifest editor also renames package-based names added by libraries | done |
+| v0.16 | Pull-down refresh in built apps (template 1.10) | done |
 | v1.0 | Release | planned |
 
 ## Known limitations

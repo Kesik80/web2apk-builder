@@ -8,12 +8,16 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.PowerManager;
 import android.provider.Settings;
+import android.view.Gravity;
+import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewConfiguration;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
@@ -31,6 +35,7 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.FrameLayout;
+import android.widget.ProgressBar;
 
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
@@ -68,6 +73,8 @@ public class MainActivity extends Activity {
 
     private WebView web;
     private boolean zipMode = false;
+    private boolean pullEnabled = true;
+    private PullLayout pull;
     private String startHost = "";
     private String screenMode = "normal";
     private String orientation = "auto";
@@ -206,6 +213,7 @@ public class MainActivity extends Activity {
             screenMode = c.optString("screen", "normal");
             orientation = c.optString("orientation", "auto");
             zipMode = "zip".equals(c.optString("mode", "url"));
+            pullEnabled = c.optBoolean("pull", true);
         } catch (Exception ignored) {
         }
         setTitle(name);
@@ -267,6 +275,7 @@ public class MainActivity extends Activity {
                     if (!earlyScript.isEmpty()) view.evaluateJavascript(earlyScript, null);
                     if (!barsScript.isEmpty()) view.evaluateJavascript(barsScript, null);
                 }
+                if (pull != null) pull.finishRefresh();
             }
         });
 
@@ -386,9 +395,156 @@ public class MainActivity extends Activity {
             }
         }
 
-        setContentView(web);
+        pull = new PullLayout(this);
+        pull.attach(web);
+        setContentView(pull);
         updateUi();
         web.loadUrl(url);
+    }
+
+    // ---- Pull down to refresh ----
+
+    /** Checks what lies under the finger: maps, canvases, iframes and scrolled inner lists keep their gesture. */
+    private static final String PROBE_JS =
+            "(function(x,y){try{var e=document.elementFromPoint(x,y);"
+                    + "while(e&&e.nodeType===1&&e!==document.documentElement){"
+                    + "var t=e.tagName;if(t==='IFRAME'||t==='CANVAS'||t==='VIDEO')return 0;"
+                    + "var c=(typeof e.className==='string'?e.className:'')+' '+(e.id||'');"
+                    + "if(/(^|[\\s_-])(map|leaflet|gm-style|mapboxgl|ol-viewport)/i.test(c))return 0;"
+                    + "var s=getComputedStyle(e);"
+                    + "var ta=s.touchAction;if(ta==='none'||ta==='pan-x')return 0;"
+                    + "var oy=s.overflowY;if((oy==='auto'||oy==='scroll')&&e.scrollTop>0)return 0;"
+                    + "e=e.parentElement;}return 1;}catch(err){return 1;}})";
+
+    private class PullLayout extends FrameLayout {
+        private final float density = getResources().getDisplayMetrics().density;
+        private final int slop = ViewConfiguration.get(MainActivity.this).getScaledTouchSlop();
+        private final float trigger = 80 * density;
+        private final float maxPull = 130 * density;
+        private final int size = Math.round(40 * density);
+        private final FrameLayout bubble;
+        private float downX;
+        private float downY;
+        private boolean tracking;
+        private boolean pulling;
+        private boolean probeOk;
+        private boolean refreshing;
+        private int probeSeq;
+        private final Runnable giveUp = this::finishRefresh;
+
+        PullLayout(android.content.Context c) {
+            super(c);
+            bubble = new FrameLayout(c);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.OVAL);
+            bg.setColor(Color.WHITE);
+            bubble.setBackground(bg);
+            bubble.setElevation(6 * density);
+            int spin = Math.round(26 * density);
+            bubble.addView(new ProgressBar(c), new FrameLayout.LayoutParams(spin, spin, Gravity.CENTER));
+            bubble.setVisibility(View.GONE);
+        }
+
+        void attach(WebView w) {
+            addView(w, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            addView(bubble, new FrameLayout.LayoutParams(size, size, Gravity.TOP | Gravity.CENTER_HORIZONTAL));
+        }
+
+        private void probe(float x, float y) {
+            final int seq = ++probeSeq;
+            probeOk = false;
+            web.evaluateJavascript(PROBE_JS + "(" + Math.round(x / density) + "," + Math.round(y / density) + ")",
+                    v -> {
+                        if (seq == probeSeq) probeOk = !"0".equals(v);
+                    });
+        }
+
+        @Override
+        public boolean onInterceptTouchEvent(MotionEvent ev) {
+            if (!pullEnabled || customView != null || web == null) return false;
+            switch (ev.getActionMasked()) {
+                case MotionEvent.ACTION_DOWN:
+                    downX = ev.getX();
+                    downY = ev.getY();
+                    pulling = false;
+                    tracking = !refreshing && web.getScrollY() <= 0;
+                    if (tracking) probe(downX, downY);
+                    return false;
+                case MotionEvent.ACTION_MOVE:
+                    if (!tracking || pulling) return pulling;
+                    if (web.getScrollY() > 0) {
+                        tracking = false;
+                        return false;
+                    }
+                    float dy = ev.getY() - downY;
+                    float dx = Math.abs(ev.getX() - downX);
+                    if (dy < -slop) {
+                        tracking = false;
+                    } else if (dy > slop && dy > dx * 1.5f && probeOk) {
+                        pulling = true;
+                        return true;
+                    }
+                    return false;
+                case MotionEvent.ACTION_UP:
+                case MotionEvent.ACTION_CANCEL:
+                    tracking = false;
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        @Override
+        public boolean onTouchEvent(MotionEvent ev) {
+            if (!pulling) return false;
+            switch (ev.getActionMasked()) {
+                case MotionEvent.ACTION_MOVE:
+                    float pull = Math.min(maxPull, Math.max(0f, (ev.getY() - downY - slop) * 0.6f));
+                    bubble.setVisibility(View.VISIBLE);
+                    bubble.setAlpha(Math.min(1f, pull / trigger));
+                    bubble.setTranslationY(pull - size);
+                    return true;
+                case MotionEvent.ACTION_UP:
+                    pulling = false;
+                    if (Math.max(0f, (ev.getY() - downY - slop) * 0.6f) >= trigger) {
+                        startRefresh();
+                    } else {
+                        hideBubble();
+                    }
+                    return true;
+                case MotionEvent.ACTION_CANCEL:
+                    pulling = false;
+                    hideBubble();
+                    return true;
+                default:
+                    return true;
+            }
+        }
+
+        private void startRefresh() {
+            refreshing = true;
+            bubble.setVisibility(View.VISIBLE);
+            bubble.setAlpha(1f);
+            bubble.animate().translationY(16 * density).setDuration(150).start();
+            web.reload();
+            removeCallbacks(giveUp);
+            postDelayed(giveUp, 10000);
+        }
+
+        void finishRefresh() {
+            removeCallbacks(giveUp);
+            if (!refreshing) return;
+            refreshing = false;
+            hideBubble();
+        }
+
+        private void hideBubble() {
+            bubble.animate().translationY(-size).alpha(0f).setDuration(180)
+                    .withEndAction(() -> {
+                        if (!refreshing) bubble.setVisibility(View.GONE);
+                    }).start();
+        }
     }
 
     // ---- ZIP mode: serve the packed site from assets/site ----
