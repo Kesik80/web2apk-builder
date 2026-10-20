@@ -36,8 +36,21 @@ android {
     }
 }
 
-// APK file name: web2apk_builder_v<versionName>-debug.apk (for example web2apk_builder_v0.14.1-debug.apk)
-base.archivesName.set("web2apk_builder_v${android.defaultConfig.versionName}")
+// After assembleDebug, put a copy named web2apk_builder_v<versionName>.apk next to app-debug.apk
+// (same folder: app/build/outputs/apk/debug). The original file stays, so Run in Android Studio is unaffected.
+val appVersion: String = android.defaultConfig.versionName ?: "0"
+val debugApkDir = layout.buildDirectory.dir("outputs/apk/debug")
+tasks.configureEach {
+    if (name == "assembleDebug") {
+        doLast {
+            val dir = debugApkDir.get().asFile
+            val src = File(dir, "app-debug.apk")
+            if (src.exists()) {
+                src.copyTo(File(dir, "web2apk_builder_v$appVersion.apk"), overwrite = true)
+            }
+        }
+    }
+}
 
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
